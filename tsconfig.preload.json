@@ -1,0 +1,13 @@
+{
+    "extends": "./tsconfig.main.json",
+    "compilerOptions": {
+        "outDir": "dist/main/preload"
+    },
+    "include": [
+        "src/preload/**/*"
+    ],
+    "exclude": [
+        "src/main/**/*",
+        "src/renderer/**/*"
+    ]
+}
