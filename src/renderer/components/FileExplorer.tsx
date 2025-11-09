@@ -5,6 +5,7 @@ import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
 type SortDirection = 'asc' | 'desc'
+type ColumnField = 'name' | 'size' | 'modified' | 'permissions'
 
 interface FileExplorerProps {
     title: string
@@ -28,6 +29,23 @@ export default function FileExplorer({
     const [files, setFiles] = useState<FileSystemEntry[]>([])
     const [sortField, setSortField] = useState<SortField>('name')
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+    const [columnWidths, setColumnWidths] = useState({
+        name: 40, // percentage
+        size: 20,
+        modified: 25,
+        permissions: 15
+    })
+
+    // Define minimum widths for each column (percentage)
+    const minColumnWidths: Record<ColumnField, number> = {
+        name: 10, // minimum 10%
+        size: 8,  // minimum 8%
+        modified: 10, // minimum 10%
+        permissions: 8 // minimum 8%
+    }
+    const [isResizing, setIsResizing] = useState<ColumnField | null>(null)
+    const [resizeStartX, setResizeStartX] = useState(0)
+    const [resizeStartWidth, setResizeStartWidth] = useState(0)
 
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error } = useQuery({
@@ -94,6 +112,76 @@ export default function FileExplorer({
 
         return sorted
     }, [files, sortField, sortDirection])
+
+    // Handle table mouse events for resizing
+    const handleTableMouseDown = (e: React.MouseEvent<HTMLTableElement>) => {
+        const target = e.target as HTMLElement
+        const th = target.closest('th')
+
+        if (!th) return
+
+        // Check if we're in the resize area (right edge of the th)
+        const rect = th.getBoundingClientRect()
+        const isNearRightEdge = e.clientX >= rect.right - 10 && e.clientX <= rect.right + 10
+
+        if (!isNearRightEdge) return
+
+        e.preventDefault()
+        e.stopPropagation()
+
+        const headers = Array.from(th.parentElement?.children || [])
+        const columnIndex = headers.indexOf(th)
+        const fieldNames = ['name', 'size', 'modified', 'permissions'] as const
+        const field = fieldNames[columnIndex]
+
+        if (field) {
+            setIsResizing(field)
+            setResizeStartX(e.clientX)
+            setResizeStartWidth(columnWidths[field])
+            document.body.style.cursor = 'col-resize'
+            document.body.style.userSelect = 'none'
+        }
+    }
+
+    // Handle mouse move during resize
+    const handleTableMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return
+
+        const container = document.getElementById('file-explorer-table')
+        if (!container) return
+
+        const containerRect = container.getBoundingClientRect()
+        const widthPercent = ((e.clientX - containerRect.left) / containerRect.width) * 100
+        const deltaPercent = widthPercent - ((resizeStartX - containerRect.left) / containerRect.width) * 100
+        const newWidth = Math.max(minColumnWidths[isResizing], Math.min(95, resizeStartWidth + deltaPercent)) // use min width from config
+
+        setColumnWidths(prev => ({
+            ...prev,
+            [isResizing]: newWidth
+        }))
+    }
+
+    // Handle mouse up to end resize
+    const handleTableMouseUp = () => {
+        setIsResizing(null)
+        setResizeStartX(0)
+        setResizeStartWidth(0)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+    }
+
+    // Add global mouse event listeners when resizing
+    React.useEffect(() => {
+        if (isResizing) {
+            document.addEventListener('mousemove', handleTableMouseMove)
+            document.addEventListener('mouseup', handleTableMouseUp)
+
+            return () => {
+                document.removeEventListener('mousemove', handleTableMouseMove)
+                document.removeEventListener('mouseup', handleTableMouseUp)
+            }
+        }
+    }, [isResizing, resizeStartX, resizeStartWidth])
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -246,43 +334,51 @@ export default function FileExplorer({
 
                 {!isLoading && !error && (
                     <div className="w-full overflow-hidden">
-                        <table className="file-table table-fixed w-full">
+                        <table
+                            id="file-explorer-table"
+                            className="file-table w-full"
+                            onMouseDown={handleTableMouseDown}
+                        >
                             <thead className="bg-gray-50 sticky top-0">
                                 <tr>
                                     <th
-                                        className="sortable-header text-left"
+                                        className="sortable-header text-left relative"
+                                        style={{ width: `${columnWidths.name}%`, minWidth: 0 }}
                                         onClick={() => handleSort('name')}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center overflow-hidden">
                                             Name
-                                            <span className="ml-1">{getSortIcon('name')}</span>
+                                            <span className="ml-1 flex-shrink-0">{getSortIcon('name')}</span>
                                         </div>
                                     </th>
                                     <th
-                                        className="sortable-header text-left"
+                                        className="sortable-header text-left relative"
+                                        style={{ width: `${columnWidths.size}%`, minWidth: 0 }}
                                         onClick={() => handleSort('size')}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center overflow-hidden">
                                             Size
-                                            <span className="ml-1">{getSortIcon('size')}</span>
+                                            <span className="ml-1 flex-shrink-0">{getSortIcon('size')}</span>
                                         </div>
                                     </th>
                                     <th
-                                        className="sortable-header text-left"
+                                        className="sortable-header text-left relative"
+                                        style={{ width: `${columnWidths.modified}%`, minWidth: 0 }}
                                         onClick={() => handleSort('modified')}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center overflow-hidden">
                                             Modified
-                                            <span className="ml-1">{getSortIcon('modified')}</span>
+                                            <span className="ml-1 flex-shrink-0">{getSortIcon('modified')}</span>
                                         </div>
                                     </th>
                                     <th
-                                        className="sortable-header text-left"
+                                        className="sortable-header text-left relative"
+                                        style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }}
                                         onClick={() => handleSort('permissions')}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center overflow-hidden">
                                             Permissions
-                                            <span className="ml-1">{getSortIcon('permissions')}</span>
+                                            <span className="ml-1 flex-shrink-0">{getSortIcon('permissions')}</span>
                                         </div>
                                     </th>
                                 </tr>
@@ -301,7 +397,7 @@ export default function FileExplorer({
                                             onClick={(e) => handleFileClick(file, e)}
                                             className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
                                         >
-                                            <td>
+                                            <td style={{ width: `${columnWidths.name}%`, minWidth: 0 }}>
                                                 <div className="flex items-center overflow-hidden">
                                                     <span className="mr-2 flex-shrink-0">
                                                         {file.type === 'directory' ? '📁' : '📄'}
@@ -309,13 +405,13 @@ export default function FileExplorer({
                                                     <span className="truncate">{file.name}</span>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td style={{ width: `${columnWidths.size}%`, minWidth: 0 }} className="truncate">
                                                 {formatFileSize(file.size)}
                                             </td>
-                                            <td>
+                                            <td style={{ width: `${columnWidths.modified}%`, minWidth: 0 }} className="truncate">
                                                 {formatDate(file.modified)}
                                             </td>
-                                            <td>
+                                            <td style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }} className="truncate">
                                                 {file.permissions || '-'}
                                             </td>
                                         </tr>

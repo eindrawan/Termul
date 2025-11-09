@@ -20,6 +20,8 @@ export default function FileManager({
 }: FileManagerProps) {
     const [selectedLocalFiles, setSelectedLocalFiles] = useState<FileSystemEntry[]>([])
     const [selectedRemoteFiles, setSelectedRemoteFiles] = useState<FileSystemEntry[]>([])
+    const [leftPaneWidth, setLeftPaneWidth] = useState(50) // percentage
+    const [isResizing, setIsResizing] = useState(false)
 
     const { state: connectionState } = useConnection()
     const { enqueueMutation } = useTransfer()
@@ -54,6 +56,49 @@ export default function FileManager({
         setSelectedRemoteFiles([])
     }
 
+    // Handle mouse down on resizer
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault()
+        setIsResizing(true)
+    }
+
+    // Handle mouse move during resize
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return
+
+        const container = document.getElementById('file-manager-container')
+        if (!container) return
+
+        const containerRect = container.getBoundingClientRect()
+        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100
+
+        // Clamp width between 20% and 80%
+        const clampedWidth = Math.min(Math.max(newWidth, 20), 80)
+        setLeftPaneWidth(clampedWidth)
+    }
+
+    // Handle mouse up to end resize
+    const handleMouseUp = () => {
+        setIsResizing(false)
+    }
+
+    // Add global mouse event listeners when resizing
+    React.useEffect(() => {
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove)
+            document.addEventListener('mouseup', handleMouseUp)
+            document.body.style.cursor = 'col-resize'
+            document.body.style.userSelect = 'none'
+
+            return () => {
+                document.removeEventListener('mousemove', handleMouseMove)
+                document.removeEventListener('mouseup', handleMouseUp)
+                document.body.style.cursor = ''
+                document.body.style.userSelect = ''
+            }
+        }
+    }, [isResizing])
+
     return (
         <div className="flex flex-col h-full">
             {/* Compact header */}
@@ -80,9 +125,12 @@ export default function FileManager({
             </div>
 
             {/* File panes container - take remaining space */}
-            <div className="flex flex-1 min-h-0">
+            <div id="file-manager-container" className="flex flex-1 min-h-0 relative">
                 {/* Local File Explorer */}
-                <div className="w-1/2 border-r">
+                <div
+                    className="border-r transition-all duration-150"
+                    style={{ width: `${leftPaneWidth}%` }}
+                >
                     <FileExplorer
                         title="Local Files"
                         path={localPath}
@@ -93,8 +141,22 @@ export default function FileManager({
                     />
                 </div>
 
+                {/* Resizer */}
+                <div
+                    className={`w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors ${isResizing ? 'bg-blue-500' : ''
+                        }`}
+                    onMouseDown={handleMouseDown}
+                >
+                    <div className="w-full h-full flex items-center justify-center">
+                        <div className="w-0.5 h-8 bg-gray-400 rounded"></div>
+                    </div>
+                </div>
+
                 {/* Remote File Explorer */}
-                <div className="w-1/2">
+                <div
+                    className="transition-all duration-150"
+                    style={{ width: `${100 - leftPaneWidth}%` }}
+                >
                     <FileExplorer
                         title="Remote Files"
                         path={remotePath}
