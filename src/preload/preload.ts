@@ -98,8 +98,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendTerminalInput: (data: string) =>
     ipcRenderer.invoke('send-terminal-input', data),
   
-  onTerminalOutput: (callback: (data: string) => void) =>
-    ipcRenderer.on('terminal-output', (_: any, data: string) => callback(data)),
+  onTerminalOutput: (callback: (data: string) => void) => {
+    const listener = (_: any, data: string) => {
+      console.log('[Preload] Terminal output received:', data)
+      callback(data)
+    }
+    ipcRenderer.on('terminal-output', listener)
+    return listener
+  },
   
   // Utility functions
   showOpenDialog: (options: any) =>

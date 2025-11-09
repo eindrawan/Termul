@@ -138,4 +138,45 @@
         @apply border-separate;
         border-spacing: 0;
     }
+
+    /* Terminal styles */
+    .xterm {
+        @apply font-mono;
+        height: 100% !important;
+        width: 100% !important;
+        position: relative;
+        padding: 4px;
+        box-sizing: border-box;
+    }
+
+    .xterm-viewport {
+        @apply bg-gray-900;
+        overflow-y: auto !important;
+    }
+
+    .xterm-screen {
+        @apply bg-gray-900;
+    }
+
+    .xterm .xterm-viewport {
+        width: 100% !important;
+    }
+
+    .xterm-helper-textarea {
+        position: absolute !important;
+        left: -9999px !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        pointer-events: none !important;
+    }
+
+    .xterm textarea {
+        position: absolute !important;
+        left: -9999px !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        pointer-events: none !important;
+    }
 }

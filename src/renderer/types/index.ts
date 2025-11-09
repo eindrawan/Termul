@@ -53,6 +53,7 @@ export interface TerminalSession {
   id: string
   connected: boolean
   host?: string
+  username?: string
   rows: number
   cols: number
 }

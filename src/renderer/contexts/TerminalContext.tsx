@@ -23,12 +23,18 @@ const initialState: TerminalState = {
 function terminalReducer(state: TerminalState, action: TerminalAction): TerminalState {
     switch (action.type) {
         case 'SET_SESSION':
+            console.log('[TerminalReducer] SET_SESSION:', action.payload)
             return { ...state, session: action.payload }
         case 'SET_OUTPUT':
+            console.log('[TerminalReducer] SET_OUTPUT:', action.payload.length, 'items')
             return { ...state, output: action.payload }
         case 'ADD_OUTPUT':
-            return { ...state, output: [...state.output, action.payload] }
+            console.log('[TerminalReducer] ADD_OUTPUT:', JSON.stringify(action.payload))
+            const newOutput = [...state.output, action.payload]
+            console.log('[TerminalReducer] New output array length:', newOutput.length)
+            return { ...state, output: newOutput }
         case 'SET_CONNECTED':
+            console.log('[TerminalReducer] SET_CONNECTED:', action.payload)
             return { ...state, isConnected: action.payload }
         default:
             return state
@@ -72,13 +78,17 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
     // Set up terminal output listener
     useEffect(() => {
+        console.log('[TerminalContext] Setting up terminal output listener')
+
         const handleOutput = (data: string) => {
+            console.log('[TerminalContext] Received output from backend:', JSON.stringify(data))
             dispatch({ type: 'ADD_OUTPUT', payload: data })
         }
 
         window.electronAPI.onTerminalOutput(handleOutput)
 
         return () => {
+            console.log('[TerminalContext] Cleaning up terminal output listener')
             window.electronAPI.removeAllListeners('terminal-output')
         }
     }, [])

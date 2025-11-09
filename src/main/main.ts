@@ -37,8 +37,15 @@ function createWindow(): void {
     }
   })
 
+  // Store window reference globally for services to access
+  ;(global as any).mainWindow = win
+
   win.on('ready-to-show', () => {
     win?.show()
+  })
+
+  win.on('closed', () => {
+    ;(global as any).mainWindow = null
   })
 
   win.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
