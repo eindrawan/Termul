@@ -39,10 +39,12 @@ export interface ElectronAPI {
   onTransferComplete: (callback: (result: any) => void) => void
   
   // Terminal operations
-  openTerminal: () => Promise<any>
-  closeTerminal: () => Promise<any>
-  sendTerminalInput: (data: string) => Promise<any>
-  onTerminalOutput: (callback: (data: string) => void) => void
+  openTerminal: (connectionId: string) => Promise<any>
+  closeTerminal: (connectionId: string) => Promise<any>
+  sendTerminalInput: (connectionId: string, data: string) => Promise<any>
+  resizeTerminal: (connectionId: string, cols: number, rows: number) => Promise<any>
+  onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
+  onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
   
   // Utility functions
   showOpenDialog: (options: any) => Promise<any>

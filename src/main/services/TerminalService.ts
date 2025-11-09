@@ -34,9 +34,6 @@ export class TerminalService {
         rows: 24,
       })
 
-      // Send initial command to ensure we get a prompt
-      shellStream.write('\r\n')
-
       const sessionId = this.generateSessionId()
 
       const session: TerminalSession = {

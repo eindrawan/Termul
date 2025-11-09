@@ -131,6 +131,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('resize-terminal', connectionId, cols, rows),
 
   onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => {
+    // Remove any existing listeners to prevent duplicates
+    ipcRenderer.removeAllListeners('terminal-output')
+    
     const listener = (_: any, data: { connectionId: string; data: string }) => {
       console.log('[Preload] Terminal output received:', data)
       callback(data)
@@ -140,6 +143,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => {
+    // Remove any existing listeners to prevent duplicates
+    ipcRenderer.removeAllListeners('terminal-session-update')
+    
     const listener = (_: any, data: { connectionId: string; session: any }) => {
       callback(data)
     }

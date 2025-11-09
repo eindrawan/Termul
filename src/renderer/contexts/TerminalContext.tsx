@@ -86,11 +86,22 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'ADD_OUTPUT', payload: data.data })
         }
 
+        const handleSessionUpdate = (data: { connectionId: string; session: any }) => {
+            console.log('[TerminalContext] Session update received:', data)
+            if (data.session) {
+                dispatch({ type: 'SET_SESSION', payload: data.session })
+                dispatch({ type: 'SET_CONNECTED', payload: data.session.connected })
+            }
+        }
+
+        // Set up listeners
         window.electronAPI.onTerminalOutput(handleOutput)
+        window.electronAPI.onTerminalSessionUpdate(handleSessionUpdate)
 
         return () => {
-            console.log('[TerminalContext] Cleaning up terminal output listener')
+            console.log('[TerminalContext] Cleaning up terminal listeners')
             window.electronAPI.removeAllListeners('terminal-output')
+            window.electronAPI.removeAllListeners('terminal-session-update')
         }
     }, [])
 

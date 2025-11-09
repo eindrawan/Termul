@@ -48,8 +48,9 @@ function createWindow(): void {
     ;(global as any).mainWindow = null
   })
 
+  // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
-    shell.openExternal(url)
+    if (url.startsWith('https:')) shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -60,12 +61,6 @@ function createWindow(): void {
   } else {
     win.loadFile(join(process.env.DIST || '', '../renderer/index.html'))
   }
-
-  // Make all links open with the browser, not with the application
-  win.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
-    if (url.startsWith('https:')) shell.openExternal(url)
-    return { action: 'deny' }
-  })
 }
 
 // This method will be called when Electron has finished
