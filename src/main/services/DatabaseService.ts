@@ -72,11 +72,24 @@ export class DatabaseService {
       )
     `)
 
+    // Connection paths table to store last visited paths
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS connection_paths (
+        id TEXT PRIMARY KEY,
+        connection_id TEXT NOT NULL,
+        path_type TEXT NOT NULL CHECK (path_type IN ('local', 'remote')),
+        path TEXT NOT NULL,
+        updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(connection_id, path_type)
+      )
+    `)
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_status ON transfer_queue(status);
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_created_at ON transfer_queue(created_at);
       CREATE INDEX IF NOT EXISTS idx_connection_profiles_updated_at ON connection_profiles(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_connection_paths_connection_id ON connection_paths(connection_id);
     `)
   }
 
@@ -272,6 +285,49 @@ export class DatabaseService {
     const stmt = this.db.prepare('SELECT * FROM known_hosts WHERE host = ? AND port = ?')
     const knownHost = stmt.get(host, port)
     return knownHost
+  }
+
+  async saveConnectionPath(profileId: string, pathType: 'local' | 'remote', path: string): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO connection_paths
+      (id, connection_id, path_type, path, updated_at)
+      VALUES (?, ?, ?, ?, strftime('%s', 'now'))
+    `)
+    
+    const id = `${profileId}-${pathType}`
+    stmt.run(id, profileId, pathType, path)
+  }
+
+  async getConnectionPath(profileId: string, pathType: 'local' | 'remote'): Promise<string | null> {
+    const stmt = this.db.prepare(`
+      SELECT path FROM connection_paths
+      WHERE connection_id = ? AND path_type = ?
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `)
+    
+    const result = stmt.get(profileId, pathType) as any
+    return result ? result.path : null
+  }
+
+  async getAllConnectionPaths(profileId: string): Promise<{ local?: string; remote?: string }> {
+    const stmt = this.db.prepare(`
+      SELECT path_type, path FROM connection_paths
+      WHERE connection_id = ?
+    `)
+    
+    const results = stmt.all(profileId) as any[]
+    const paths: { local?: string; remote?: string } = {}
+    
+    results.forEach(result => {
+      if (result.path_type === 'local') {
+        paths.local = result.path
+      } else if (result.path_type === 'remote') {
+        paths.remote = result.path
+      }
+    })
+    
+    return paths
   }
 
   private generateId(): string {

@@ -25,8 +25,19 @@ export default function FileManager({
     const [leftPaneWidth, setLeftPaneWidth] = useState(50) // percentage
     const [isResizing, setIsResizing] = useState(false)
 
-    const { state: connectionState } = useConnection()
+    const { state: connectionState, dispatch } = useConnection()
     const { enqueueMutation } = useTransfer()
+
+    // Save local path when it changes
+    const handleLocalPathChange = (path: string) => {
+        onLocalPathChange(path)
+        if (connectionState.currentConnectionId) {
+            dispatch({
+                type: 'UPDATE_LOCAL_PATH',
+                payload: { connectionId: connectionState.currentConnectionId, localPath: path }
+            })
+        }
+    }
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
@@ -141,7 +152,7 @@ export default function FileManager({
                     <FileExplorer
                         title="Local Files"
                         path={localPath}
-                        onPathChange={onLocalPathChange}
+                        onPathChange={handleLocalPathChange}
                         selectedFiles={selectedLocalFiles}
                         onSelectionChange={setSelectedLocalFiles}
                         isLocal={true}

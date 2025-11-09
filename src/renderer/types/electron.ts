@@ -2,8 +2,8 @@
 export interface ElectronAPI {
   // Connection management
   connectToHost: (profile: any) => Promise<any>
-  disconnectFromHost: () => Promise<any>
-  getConnectionStatus: () => Promise<any>
+  disconnectFromHost: (connectionId: string) => Promise<any>
+  getConnectionStatus: (connectionId: string) => Promise<any>
   onConnectionStatusChange: (callback: (status: any) => void) => void
   
   // Profile management
@@ -12,6 +12,11 @@ export interface ElectronAPI {
   deleteProfile: (id: string) => Promise<any>
   testConnection: (profile: any) => Promise<boolean>
   storePassword: (profile: any, password: string) => Promise<string>
+  
+  // Connection path management
+  saveConnectionPath: (profileId: string, pathType: 'local' | 'remote', path: string) => Promise<void>
+  getConnectionPath: (profileId: string, pathType: 'local' | 'remote') => Promise<string | null>
+  getAllConnectionPaths: (profileId: string) => Promise<{ local?: string; remote?: string }>
   
   // File system operations
   listLocalFiles: (path: string) => Promise<any>

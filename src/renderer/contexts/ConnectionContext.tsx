@@ -17,6 +17,7 @@ type ConnectionAction =
     | { type: 'UPDATE_CONNECTION_STATUS'; payload: { connectionId: string; status: ConnectionStatus } }
     | { type: 'SET_CURRENT_CONNECTION'; payload: string | undefined }
     | { type: 'UPDATE_REMOTE_PATH'; payload: { connectionId: string; remotePath: string } }
+    | { type: 'UPDATE_LOCAL_PATH'; payload: { connectionId: string; localPath: string } }
     | { type: 'SET_LOADING'; payload: boolean }
 
 const initialState: ConnectionState = {
@@ -55,6 +56,20 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
         }
         case 'SET_CURRENT_CONNECTION':
             return { ...state, currentConnectionId: action.payload }
+        case 'UPDATE_LOCAL_PATH': {
+            const newConnections = new Map(state.activeConnections)
+            const connection = newConnections.get(action.payload.connectionId)
+            if (connection) {
+                newConnections.set(action.payload.connectionId, {
+                    ...connection,
+                    localPath: action.payload.localPath
+                })
+                // Save path to database using profile ID
+                window.electronAPI.saveConnectionPath(connection.profile.id || '', 'local', action.payload.localPath)
+                    .catch(error => console.warn('Failed to save local path:', error))
+            }
+            return { ...state, activeConnections: newConnections }
+        }
         case 'UPDATE_REMOTE_PATH': {
             const newConnections = new Map(state.activeConnections)
             const connection = newConnections.get(action.payload.connectionId)
@@ -63,6 +78,9 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
                     ...connection,
                     remotePath: action.payload.remotePath
                 })
+                // Save path to database using profile ID
+                window.electronAPI.saveConnectionPath(connection.profile.id || '', 'remote', action.payload.remotePath)
+                    .catch(error => console.warn('Failed to save remote path:', error))
             }
             return { ...state, activeConnections: newConnections }
         }
@@ -105,12 +123,21 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         onMutate: () => {
             dispatch({ type: 'SET_LOADING', payload: true })
         },
-        onSuccess: (result: { connectionId: string; status: ConnectionStatus }, profile) => {
+        onSuccess: async (result: { connectionId: string; status: ConnectionStatus }, profile) => {
+            // Try to load saved paths for this profile
+            let savedPaths: { local?: string; remote?: string } = {}
+            try {
+                savedPaths = await window.electronAPI.getAllConnectionPaths(profile.id || '')
+            } catch (error) {
+                console.warn('Failed to load saved paths:', error)
+            }
+
             const newConnection: ActiveConnection = {
                 id: result.connectionId,
                 profile,
                 status: result.status,
-                remotePath: '/'
+                remotePath: savedPaths.remote || '/',
+                localPath: savedPaths.local || undefined
             }
             dispatch({ type: 'ADD_CONNECTION', payload: newConnection })
         },

@@ -55,6 +55,7 @@ export interface ActiveConnection {
   profile: ConnectionProfile
   status: ConnectionStatus
   remotePath: string
+  localPath?: string
   terminalSession?: TerminalSession
 }
 

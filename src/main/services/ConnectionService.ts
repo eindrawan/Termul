@@ -181,4 +181,16 @@ export class ConnectionService {
       return false
     }
   }
+
+  async saveConnectionPath(profileId: string, pathType: 'local' | 'remote', path: string): Promise<void> {
+    await this.db.saveConnectionPath(profileId, pathType, path)
+  }
+
+  async getConnectionPath(profileId: string, pathType: 'local' | 'remote'): Promise<string | null> {
+    return await this.db.getConnectionPath(profileId, pathType)
+  }
+
+  async getAllConnectionPaths(profileId: string): Promise<{ local?: string; remote?: string }> {
+    return await this.db.getAllConnectionPaths(profileId)
+  }
 }

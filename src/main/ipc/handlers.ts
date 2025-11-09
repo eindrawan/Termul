@@ -113,6 +113,34 @@ export function setupIpcHandlers() {
     }
   })
 
+  // Connection path handlers
+  ipcMain.handle('save-connection-path', async (_, profileId: string, pathType: 'local' | 'remote', path: string) => {
+    try {
+      return await connectionService.saveConnectionPath(profileId, pathType, path)
+    } catch (error) {
+      console.error('Save connection path error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-connection-path', async (_, profileId: string, pathType: 'local' | 'remote') => {
+    try {
+      return await connectionService.getConnectionPath(profileId, pathType)
+    } catch (error) {
+      console.error('Get connection path error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-all-connection-paths', async (_, profileId: string) => {
+    try {
+      return await connectionService.getAllConnectionPaths(profileId)
+    } catch (error) {
+      console.error('Get all connection paths error:', error)
+      throw error
+    }
+  })
+
   // File system handlers
   ipcMain.handle('list-local-files', async (_, path) => {
     try {

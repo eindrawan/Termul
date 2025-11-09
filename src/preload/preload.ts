@@ -57,6 +57,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storePassword: (profile: z.infer<typeof ConnectionProfileSchema>, password: string) =>
     ipcRenderer.invoke('store-password', profile, password),
   
+  // Connection path management
+  saveConnectionPath: (profileId: string, pathType: 'local' | 'remote', path: string) =>
+    ipcRenderer.invoke('save-connection-path', profileId, pathType, path),
+  
+  getConnectionPath: (profileId: string, pathType: 'local' | 'remote') =>
+    ipcRenderer.invoke('get-connection-path', profileId, pathType),
+  
+  getAllConnectionPaths: (profileId: string) =>
+    ipcRenderer.invoke('get-all-connection-paths', profileId),
+  
   // File system operations
   listLocalFiles: (path: string) =>
     ipcRenderer.invoke('list-local-files', path),
@@ -162,6 +172,9 @@ declare global {
       deleteProfile: (id: string) => Promise<any>
       testConnection: (profile: any) => Promise<boolean>
       storePassword: (profile: any, password: string) => Promise<string>
+      saveConnectionPath: (connectionId: string, pathType: 'local' | 'remote', path: string) => Promise<void>
+      getConnectionPath: (connectionId: string, pathType: 'local' | 'remote') => Promise<string | null>
+      getAllConnectionPaths: (connectionId: string) => Promise<{ local?: string; remote?: string }>
       listLocalFiles: (path: string) => Promise<any>
       listRemoteFiles: (connectionId: string, path: string) => Promise<any>
       getHomeDirectory: () => Promise<string>

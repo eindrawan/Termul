@@ -11,6 +11,18 @@ export default function MainLayout() {
     const [localPath, setLocalPath] = useState('C:\\')
     const { state: connectionState, dispatch } = useConnection()
 
+    // Get current connection
+    const currentConnection = connectionState.currentConnectionId
+        ? connectionState.activeConnections.get(connectionState.currentConnectionId)
+        : undefined
+
+    // Update local path when switching connections
+    useEffect(() => {
+        if (currentConnection?.localPath) {
+            setLocalPath(currentConnection.localPath)
+        }
+    }, [currentConnection?.localPath])
+
     // Get user's home directory on component mount
     useEffect(() => {
         const getHomeDirectory = async () => {
@@ -27,10 +39,6 @@ export default function MainLayout() {
 
         getHomeDirectory()
     }, [])
-
-    const currentConnection = connectionState.currentConnectionId
-        ? connectionState.activeConnections.get(connectionState.currentConnectionId)
-        : undefined
 
     const handleRemotePathChange = (path: string) => {
         if (connectionState.currentConnectionId) {
