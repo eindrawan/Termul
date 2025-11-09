@@ -2,21 +2,22 @@
 export interface ElectronAPI {
   // Connection management
   connectToHost: (profile: any) => Promise<any>
-  disconnectFromHost: () => Promise<any>
-  getConnectionStatus: () => Promise<any>
+  disconnectFromHost: (connectionId: string) => Promise<any>
+  getConnectionStatus: (connectionId: string) => Promise<any>
   onConnectionStatusChange: (callback: (status: any) => void) => void
-  
+
   // Profile management
   saveProfile: (profile: any) => Promise<any>
   getProfiles: () => Promise<any>
   deleteProfile: (id: string) => Promise<any>
   testConnection: (profile: any) => Promise<boolean>
-  
+  storePassword: (profile: any, password: string) => Promise<string>
+
   // File system operations
   listLocalFiles: (path: string) => Promise<any>
-  listRemoteFiles: (path: string) => Promise<any>
+  listRemoteFiles: (connectionId: string, path: string) => Promise<any>
   getHomeDirectory: () => Promise<string>
-  
+
   // Transfer operations
   enqueueTransfers: (transfers: any[]) => Promise<any>
   getTransferQueue: () => Promise<any>
@@ -25,17 +26,19 @@ export interface ElectronAPI {
   cancelTransfer: (id: string) => Promise<any>
   onTransferProgress: (callback: (progress: any) => void) => void
   onTransferComplete: (callback: (result: any) => void) => void
-  
+
   // Terminal operations
-  openTerminal: () => Promise<any>
-  closeTerminal: () => Promise<any>
-  sendTerminalInput: (data: string) => Promise<any>
-  onTerminalOutput: (callback: (data: string) => void) => void
-  
+  openTerminal: (connectionId: string) => Promise<any>
+  closeTerminal: (connectionId: string) => Promise<any>
+  sendTerminalInput: (connectionId: string, data: string) => Promise<any>
+  resizeTerminal: (connectionId: string, cols: number, rows: number) => Promise<any>
+  onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
+  onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
+
   // Utility functions
   showOpenDialog: (options: any) => Promise<any>
   showSaveDialog: (options: any) => Promise<any>
-  
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }

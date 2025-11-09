@@ -20,6 +20,7 @@ export interface FileSystemEntry {
 
 export interface TransferDescriptor {
   id?: string
+  connectionId: string
   sourcePath: string
   destinationPath: string
   direction: 'upload' | 'download'
@@ -49,8 +50,17 @@ export interface ConnectionStatus {
   latency?: number
 }
 
+export interface ActiveConnection {
+  id: string
+  profile: ConnectionProfile
+  status: ConnectionStatus
+  remotePath: string
+  terminalSession?: TerminalSession
+}
+
 export interface TerminalSession {
   id: string
+  connectionId: string
   connected: boolean
   host?: string
   username?: string

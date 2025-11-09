@@ -34,6 +34,7 @@ export class DatabaseService {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS transfer_queue (
         id TEXT PRIMARY KEY,
+        connection_id TEXT NOT NULL,
         source_path TEXT NOT NULL,
         destination_path TEXT NOT NULL,
         direction TEXT NOT NULL CHECK (direction IN ('upload', 'download')),
@@ -50,6 +51,13 @@ export class DatabaseService {
         completed_at INTEGER
       )
     `)
+
+    // Migration: Add connection_id column if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE transfer_queue ADD COLUMN connection_id TEXT`)
+    } catch (error) {
+      // Column already exists, ignore error
+    }
 
     // Known hosts table for SSH host key verification
     this.db.exec(`
@@ -140,15 +148,16 @@ export class DatabaseService {
   async enqueueTransfer(transfer: Omit<TransferItem, 'id' | 'createdAt' | 'startedAt' | 'completedAt'>): Promise<TransferItem> {
     const id = this.generateId()
     const now = Math.floor(Date.now() / 1000)
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO transfer_queue
-      (id, source_path, destination_path, direction, size, overwrite_policy, priority, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, connection_id, source_path, destination_path, direction, size, overwrite_policy, priority, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    
+
     stmt.run(
       id,
+      transfer.connectionId,
       transfer.sourcePath,
       transfer.destinationPath,
       transfer.direction,
@@ -158,7 +167,7 @@ export class DatabaseService {
       transfer.status,
       now
     )
-    
+
     return {
       ...transfer,
       id,
@@ -171,11 +180,12 @@ export class DatabaseService {
       SELECT * FROM transfer_queue
       ORDER BY priority DESC, created_at ASC
     `)
-    
+
     const transfers = stmt.all() as any[]
-    
+
     return transfers.map(transfer => ({
       id: transfer.id,
+      connectionId: transfer.connection_id,
       sourcePath: transfer.source_path,
       destinationPath: transfer.destination_path,
       direction: transfer.direction as 'upload' | 'download',

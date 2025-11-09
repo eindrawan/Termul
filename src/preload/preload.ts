@@ -15,6 +15,7 @@ const ConnectionProfileSchema = z.object({
 
 const TransferDescriptorSchema = z.object({
   id: z.string().optional(),
+  connectionId: z.string(),
   sourcePath: z.string(),
   destinationPath: z.string(),
   direction: z.enum(['upload', 'download']),
@@ -31,11 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   connectToHost: (profile: z.infer<typeof ConnectionProfileSchema>) =>
     ipcRenderer.invoke('connect-to-host', profile),
   
-  disconnectFromHost: () =>
-    ipcRenderer.invoke('disconnect-from-host'),
-  
-  getConnectionStatus: () =>
-    ipcRenderer.invoke('get-connection-status'),
+  disconnectFromHost: (connectionId: string) =>
+    ipcRenderer.invoke('disconnect-from-host', connectionId),
+
+  getConnectionStatus: (connectionId: string) =>
+    ipcRenderer.invoke('get-connection-status', connectionId),
   
   onConnectionStatusChange: (callback: (status: any) => void) =>
     ipcRenderer.on('connection-status-change', (_: any, status: any) => callback(status)),
@@ -60,8 +61,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listLocalFiles: (path: string) =>
     ipcRenderer.invoke('list-local-files', path),
   
-  listRemoteFiles: (path: string) =>
-    ipcRenderer.invoke('list-remote-files', path),
+  listRemoteFiles: (connectionId: string, path: string) =>
+    ipcRenderer.invoke('list-remote-files', connectionId, path),
   
   getHomeDirectory: () =>
     ipcRenderer.invoke('get-home-directory'),
@@ -89,21 +90,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('transfer-complete', (_: any, result: any) => callback(result)),
   
   // Terminal operations
-  openTerminal: () =>
-    ipcRenderer.invoke('open-terminal'),
-  
-  closeTerminal: () =>
-    ipcRenderer.invoke('close-terminal'),
-  
-  sendTerminalInput: (data: string) =>
-    ipcRenderer.invoke('send-terminal-input', data),
-  
-  onTerminalOutput: (callback: (data: string) => void) => {
-    const listener = (_: any, data: string) => {
+  openTerminal: (connectionId: string) =>
+    ipcRenderer.invoke('open-terminal', connectionId),
+
+  closeTerminal: (connectionId: string) =>
+    ipcRenderer.invoke('close-terminal', connectionId),
+
+  sendTerminalInput: (connectionId: string, data: string) =>
+    ipcRenderer.invoke('send-terminal-input', connectionId, data),
+
+  resizeTerminal: (connectionId: string, cols: number, rows: number) =>
+    ipcRenderer.invoke('resize-terminal', connectionId, cols, rows),
+
+  onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => {
+    const listener = (_: any, data: { connectionId: string; data: string }) => {
       console.log('[Preload] Terminal output received:', data)
       callback(data)
     }
     ipcRenderer.on('terminal-output', listener)
+    return listener
+  },
+
+  onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => {
+    const listener = (_: any, data: { connectionId: string; session: any }) => {
+      callback(data)
+    }
+    ipcRenderer.on('terminal-session-update', listener)
     return listener
   },
   
@@ -124,8 +136,8 @@ declare global {
   interface Window {
     electronAPI: {
       connectToHost: (profile: any) => Promise<any>
-      disconnectFromHost: () => Promise<any>
-      getConnectionStatus: () => Promise<any>
+      disconnectFromHost: (connectionId: string) => Promise<any>
+      getConnectionStatus: (connectionId: string) => Promise<any>
       onConnectionStatusChange: (callback: (status: any) => void) => void
       saveProfile: (profile: any) => Promise<any>
       getProfiles: () => Promise<any>
@@ -133,7 +145,7 @@ declare global {
       testConnection: (profile: any) => Promise<boolean>
       storePassword: (profile: any, password: string) => Promise<string>
       listLocalFiles: (path: string) => Promise<any>
-      listRemoteFiles: (path: string) => Promise<any>
+      listRemoteFiles: (connectionId: string, path: string) => Promise<any>
       getHomeDirectory: () => Promise<string>
       enqueueTransfers: (transfers: any[]) => Promise<any>
       getTransferQueue: () => Promise<any>
@@ -142,10 +154,12 @@ declare global {
       cancelTransfer: (id: string) => Promise<any>
       onTransferProgress: (callback: (progress: any) => void) => void
       onTransferComplete: (callback: (result: any) => void) => void
-      openTerminal: () => Promise<any>
-      closeTerminal: () => Promise<any>
-      sendTerminalInput: (data: string) => Promise<any>
-      onTerminalOutput: (callback: (data: string) => void) => void
+      openTerminal: (connectionId: string) => Promise<any>
+      closeTerminal: (connectionId: string) => Promise<any>
+      sendTerminalInput: (connectionId: string, data: string) => Promise<any>
+      resizeTerminal: (connectionId: string, cols: number, rows: number) => Promise<any>
+      onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
+      onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
       showOpenDialog: (options: any) => Promise<any>
       showSaveDialog: (options: any) => Promise<any>
       removeAllListeners: (channel: string) => void

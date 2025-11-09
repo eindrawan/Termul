@@ -102,17 +102,17 @@ export class FileService {
     }
   }
 
-  async listRemoteFiles(path: string): Promise<FileSystemEntry[]> {
+  async listRemoteFiles(connectionId: string, path: string): Promise<FileSystemEntry[]> {
     console.log(`FileService: Attempting to list remote files for path: ${path}`)
-    
-    const ssh = this.connectionService.getSshClient()
+
+    const ssh = this.connectionService.getSshClient(connectionId)
     if (!ssh) {
       console.error('FileService: SSH client is null')
       throw new Error('Not connected to remote host')
     }
 
     // Get the connection details from the SSH client
-    const connectionConfig = this.connectionService.getConnectionConfig()
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
     if (!connectionConfig) {
       console.error('FileService: Connection config is null')
       throw new Error('Connection configuration not available')
@@ -193,13 +193,13 @@ export class FileService {
     }
   }
 
-  async createRemoteDirectory(path: string): Promise<void> {
-    const ssh = this.connectionService.getSshClient()
+  async createRemoteDirectory(connectionId: string, path: string): Promise<void> {
+    const ssh = this.connectionService.getSshClient(connectionId)
     if (!ssh) {
       throw new Error('Not connected to remote host')
     }
 
-    const connectionConfig = this.connectionService.getConnectionConfig()
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
     if (!connectionConfig) {
       throw new Error('Connection configuration not available')
     }
@@ -239,13 +239,13 @@ export class FileService {
     }
   }
 
-  async deleteRemoteFile(path: string): Promise<void> {
-    const ssh = this.connectionService.getSshClient()
+  async deleteRemoteFile(connectionId: string, path: string): Promise<void> {
+    const ssh = this.connectionService.getSshClient(connectionId)
     if (!ssh) {
       throw new Error('Not connected to remote host')
     }
 
-    const connectionConfig = this.connectionService.getConnectionConfig()
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
     if (!connectionConfig) {
       throw new Error('Connection configuration not available')
     }
@@ -296,13 +296,13 @@ export class FileService {
     }
   }
 
-  async getRemoteFileInfo(path: string): Promise<FileSystemEntry | null> {
-    const ssh = this.connectionService.getSshClient()
+  async getRemoteFileInfo(connectionId: string, path: string): Promise<FileSystemEntry | null> {
+    const ssh = this.connectionService.getSshClient(connectionId)
     if (!ssh) {
       throw new Error('Not connected to remote host')
     }
 
-    const connectionConfig = this.connectionService.getConnectionConfig()
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
     if (!connectionConfig) {
       throw new Error('Connection configuration not available')
     }
@@ -400,16 +400,13 @@ export class FileService {
     return join(path)
   }
 
-  async resolveRemotePath(path: string): Promise<string> {
+  async resolveRemotePath(path: string, _connectionId?: string): Promise<string> {
     // Normalize remote path (handle ~, ., ..)
     if (path.startsWith('~')) {
       // Expand to user home directory
-      const ssh = this.connectionService.getSshClient()
-      if (ssh) {
-        // For now, just replace ~ with /home/username
-        // In a real implementation, you'd get the actual home directory
-        return path.replace('~', '/home')
-      }
+      // For now, just replace ~ with /home/username
+      // In a real implementation, you'd get the actual home directory from the SSH connection
+      return path.replace('~', '/home')
     }
     
     // Handle root directory specially - keep the trailing slash for root "/"

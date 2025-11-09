@@ -1,24 +1,27 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
-import { ConnectionProfile, ConnectionStatus } from '../types'
+import { ConnectionProfile, ConnectionStatus, ActiveConnection } from '../types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 interface ConnectionState {
     profiles: ConnectionProfile[]
-    currentProfile?: ConnectionProfile
-    status: ConnectionStatus
+    activeConnections: Map<string, ActiveConnection>
+    currentConnectionId?: string
     isLoading: boolean
 }
 
 type ConnectionAction =
     | { type: 'SET_PROFILES'; payload: ConnectionProfile[] }
-    | { type: 'SET_CURRENT_PROFILE'; payload: ConnectionProfile | undefined }
-    | { type: 'SET_STATUS'; payload: ConnectionStatus }
+    | { type: 'ADD_CONNECTION'; payload: ActiveConnection }
+    | { type: 'REMOVE_CONNECTION'; payload: string }
+    | { type: 'UPDATE_CONNECTION_STATUS'; payload: { connectionId: string; status: ConnectionStatus } }
+    | { type: 'SET_CURRENT_CONNECTION'; payload: string | undefined }
+    | { type: 'UPDATE_REMOTE_PATH'; payload: { connectionId: string; remotePath: string } }
     | { type: 'SET_LOADING'; payload: boolean }
 
 const initialState: ConnectionState = {
     profiles: [],
-    status: { connected: false, connecting: false },
+    activeConnections: new Map(),
     isLoading: false,
 }
 
@@ -26,10 +29,43 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
     switch (action.type) {
         case 'SET_PROFILES':
             return { ...state, profiles: action.payload }
-        case 'SET_CURRENT_PROFILE':
-            return { ...state, currentProfile: action.payload }
-        case 'SET_STATUS':
-            return { ...state, status: action.payload }
+        case 'ADD_CONNECTION': {
+            const newConnections = new Map(state.activeConnections)
+            newConnections.set(action.payload.id, action.payload)
+            return { ...state, activeConnections: newConnections, currentConnectionId: action.payload.id }
+        }
+        case 'REMOVE_CONNECTION': {
+            const newConnections = new Map(state.activeConnections)
+            newConnections.delete(action.payload)
+            const newCurrentId = state.currentConnectionId === action.payload
+                ? Array.from(newConnections.keys())[0]
+                : state.currentConnectionId
+            return { ...state, activeConnections: newConnections, currentConnectionId: newCurrentId }
+        }
+        case 'UPDATE_CONNECTION_STATUS': {
+            const newConnections = new Map(state.activeConnections)
+            const connection = newConnections.get(action.payload.connectionId)
+            if (connection) {
+                newConnections.set(action.payload.connectionId, {
+                    ...connection,
+                    status: action.payload.status
+                })
+            }
+            return { ...state, activeConnections: newConnections }
+        }
+        case 'SET_CURRENT_CONNECTION':
+            return { ...state, currentConnectionId: action.payload }
+        case 'UPDATE_REMOTE_PATH': {
+            const newConnections = new Map(state.activeConnections)
+            const connection = newConnections.get(action.payload.connectionId)
+            if (connection) {
+                newConnections.set(action.payload.connectionId, {
+                    ...connection,
+                    remotePath: action.payload.remotePath
+                })
+            }
+            return { ...state, activeConnections: newConnections }
+        }
         case 'SET_LOADING':
             return { ...state, isLoading: action.payload }
         default:
@@ -68,14 +104,18 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         mutationFn: (profile: ConnectionProfile) => window.electronAPI.connectToHost(profile),
         onMutate: () => {
             dispatch({ type: 'SET_LOADING', payload: true })
-            dispatch({ type: 'SET_STATUS', payload: { connected: false, connecting: true } })
         },
-        onSuccess: (_, profile) => {
-            dispatch({ type: 'SET_CURRENT_PROFILE', payload: profile })
-            dispatch({ type: 'SET_STATUS', payload: { connected: true, connecting: false, host: profile.host, username: profile.username } })
+        onSuccess: (result: { connectionId: string; status: ConnectionStatus }, profile) => {
+            const newConnection: ActiveConnection = {
+                id: result.connectionId,
+                profile,
+                status: result.status,
+                remotePath: '/'
+            }
+            dispatch({ type: 'ADD_CONNECTION', payload: newConnection })
         },
         onError: (error: any) => {
-            dispatch({ type: 'SET_STATUS', payload: { connected: false, connecting: false, error: error.message } })
+            console.error('Connection error:', error)
         },
         onSettled: () => {
             dispatch({ type: 'SET_LOADING', payload: false })
@@ -84,10 +124,9 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
     // Mutation for disconnecting
     const disconnectMutation = useMutation({
-        mutationFn: () => window.electronAPI.disconnectFromHost(),
-        onSuccess: () => {
-            dispatch({ type: 'SET_CURRENT_PROFILE', payload: undefined })
-            dispatch({ type: 'SET_STATUS', payload: { connected: false, connecting: false } })
+        mutationFn: (connectionId: string) => window.electronAPI.disconnectFromHost(connectionId),
+        onSuccess: (_, connectionId) => {
+            dispatch({ type: 'REMOVE_CONNECTION', payload: connectionId })
         },
     })
 
@@ -109,8 +148,8 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
 
     // Set up connection status listener
     useEffect(() => {
-        const handleStatusChange = (status: ConnectionStatus) => {
-            dispatch({ type: 'SET_STATUS', payload: status })
+        const handleStatusChange = (data: { connectionId: string; status: ConnectionStatus }) => {
+            dispatch({ type: 'UPDATE_CONNECTION_STATUS', payload: data })
         }
 
         window.electronAPI.onConnectionStatusChange(handleStatusChange)

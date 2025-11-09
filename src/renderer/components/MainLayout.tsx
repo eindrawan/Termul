@@ -9,8 +9,7 @@ import Terminal from './Terminal'
 export default function MainLayout() {
     const [activeTab, setActiveTab] = useState<TabType>('file-manager')
     const [localPath, setLocalPath] = useState('C:\\')
-    const [remotePath, setRemotePath] = useState('/')
-    const { state: connectionState } = useConnection()
+    const { state: connectionState, dispatch } = useConnection()
 
     // Get user's home directory on component mount
     useEffect(() => {
@@ -28,6 +27,19 @@ export default function MainLayout() {
 
         getHomeDirectory()
     }, [])
+
+    const currentConnection = connectionState.currentConnectionId
+        ? connectionState.activeConnections.get(connectionState.currentConnectionId)
+        : undefined
+
+    const handleRemotePathChange = (path: string) => {
+        if (connectionState.currentConnectionId) {
+            dispatch({
+                type: 'UPDATE_REMOTE_PATH',
+                payload: { connectionId: connectionState.currentConnectionId, remotePath: path }
+            })
+        }
+    }
 
     const tabs: { id: TabType; label: string; icon: string }[] = [
         { id: 'file-manager', label: 'File Manager', icon: '📁' },
@@ -61,43 +73,83 @@ export default function MainLayout() {
 
                 {/* Tab Content */}
                 <div className="flex-1 overflow-hidden">
+                    {/* Render FileManager for each connection, show/hide based on active connection */}
                     <div className={`h-full ${activeTab === 'file-manager' ? 'block' : 'hidden'}`}>
-                        <FileManager
-                            localPath={localPath}
-                            onLocalPathChange={setLocalPath}
-                            remotePath={remotePath}
-                            onRemotePathChange={setRemotePath}
-                        />
+                        {Array.from(connectionState.activeConnections.entries()).map(([connectionId, connection]) => (
+                            <div
+                                key={connectionId}
+                                className={`h-full ${connectionState.currentConnectionId === connectionId ? 'block' : 'hidden'}`}
+                            >
+                                <FileManager
+                                    connectionId={connectionId}
+                                    localPath={localPath}
+                                    onLocalPathChange={setLocalPath}
+                                    remotePath={connection.remotePath}
+                                    onRemotePathChange={handleRemotePathChange}
+                                />
+                            </div>
+                        ))}
+                        {connectionState.activeConnections.size === 0 && (
+                            <div className="flex items-center justify-center h-full text-gray-500">
+                                No active connections. Select a profile to connect.
+                            </div>
+                        )}
                     </div>
+
                     <div className={`h-full ${activeTab === 'transfer-queue' ? 'block' : 'hidden'}`}>
                         <TransferQueue />
                     </div>
+
+                    {/* Render Terminal for each connection, show/hide based on active connection */}
                     <div className={`h-full ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
-                        <Terminal />
+                        {Array.from(connectionState.activeConnections.entries()).map(([connectionId, connection]) => (
+                            <div
+                                key={connectionId}
+                                className={`h-full ${connectionState.currentConnectionId === connectionId ? 'block' : 'hidden'}`}
+                            >
+                                <Terminal connectionId={connectionId} />
+                            </div>
+                        ))}
+                        {connectionState.activeConnections.size === 0 && (
+                            <div className="flex items-center justify-center h-full text-gray-500">
+                                No active connections. Select a profile to connect.
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Status Bar */}
                 <div className="flex items-center justify-between px-4 py-1 bg-gray-800 text-white text-xs">
                     <div className="flex items-center space-x-4">
-                        <span className={`status-indicator ${connectionState.status.connected ? 'status-connected' :
-                            connectionState.status.connecting ? 'status-connecting' :
-                                connectionState.status.error ? 'status-error' :
-                                    'status-disconnected'
-                            }`}>
-                            {connectionState.status.connected ? 'Connected' :
-                                connectionState.status.connecting ? 'Connecting...' :
-                                    connectionState.status.error ? 'Error' :
-                                        'Disconnected'}
-                        </span>
-                        {connectionState.status.host && (
-                            <span>{connectionState.status.username}@{connectionState.status.host}</span>
+                        {currentConnection && currentConnection.status ? (
+                            <>
+                                <span className={`status-indicator ${currentConnection.status.connected ? 'status-connected' :
+                                    currentConnection.status.connecting ? 'status-connecting' :
+                                        currentConnection.status.error ? 'status-error' :
+                                            'status-disconnected'
+                                    }`}>
+                                    {currentConnection.status.connected ? 'Connected' :
+                                        currentConnection.status.connecting ? 'Connecting...' :
+                                            currentConnection.status.error ? 'Error' :
+                                                'Disconnected'}
+                                </span>
+                                {currentConnection.status.host && (
+                                    <span>{currentConnection.status.username}@{currentConnection.status.host}</span>
+                                )}
+                                {currentConnection.status.latency && (
+                                    <span>Latency: {currentConnection.status.latency}ms</span>
+                                )}
+                            </>
+                        ) : (
+                            <span className="status-indicator status-disconnected">No Connection</span>
+                        )}
+                        {connectionState.activeConnections.size > 1 && (
+                            <span className="text-gray-400">
+                                ({connectionState.activeConnections.size} connections)
+                            </span>
                         )}
                     </div>
                     <div className="flex items-center space-x-4">
-                        {connectionState.status.latency && (
-                            <span>Latency: {connectionState.status.latency}ms</span>
-                        )}
                         <span>Termul SSH Client v0.1.0</span>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ import FileExplorer from './FileExplorer'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 interface FileManagerProps {
+    connectionId: string
     localPath: string
     onLocalPathChange: (path: string) => void
     remotePath: string
@@ -13,6 +14,7 @@ interface FileManagerProps {
 }
 
 export default function FileManager({
+    connectionId,
     localPath,
     onLocalPathChange,
     remotePath,
@@ -26,10 +28,14 @@ export default function FileManager({
     const { state: connectionState } = useConnection()
     const { enqueueMutation } = useTransfer()
 
+    const connection = connectionState.activeConnections.get(connectionId)
+    const isConnected = connection?.status.connected || false
+
     const handleUpload = () => {
-        if (selectedLocalFiles.length === 0 || !connectionState.status.connected) return
+        if (selectedLocalFiles.length === 0 || !isConnected) return
 
         const transfers: TransferDescriptor[] = selectedLocalFiles.map(file => ({
+            connectionId,
             sourcePath: file.path,
             destinationPath: `${remotePath}/${file.name}`,
             direction: 'upload' as const,
@@ -42,9 +48,10 @@ export default function FileManager({
     }
 
     const handleDownload = () => {
-        if (selectedRemoteFiles.length === 0 || !connectionState.status.connected) return
+        if (selectedRemoteFiles.length === 0 || !isConnected) return
 
         const transfers: TransferDescriptor[] = selectedRemoteFiles.map(file => ({
+            connectionId,
             sourcePath: file.path,
             destinationPath: `${localPath}/${file.name}`,
             direction: 'download' as const,
@@ -106,21 +113,21 @@ export default function FileManager({
                 <div className="flex items-center space-x-3">
                     <button
                         onClick={handleUpload}
-                        disabled={selectedLocalFiles.length === 0 || !connectionState.status.connected}
+                        disabled={selectedLocalFiles.length === 0 || !isConnected}
                         className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50"
                     >
                         Upload ({selectedLocalFiles.length})
                     </button>
                     <button
                         onClick={handleDownload}
-                        disabled={selectedRemoteFiles.length === 0 || !connectionState.status.connected}
+                        disabled={selectedRemoteFiles.length === 0 || !isConnected}
                         className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50"
                     >
                         Download ({selectedRemoteFiles.length})
                     </button>
                 </div>
                 <div className="text-xs text-gray-600">
-                    {!connectionState.status.connected && 'Not connected'}
+                    {!isConnected && 'Not connected'}
                 </div>
             </div>
 
@@ -158,13 +165,14 @@ export default function FileManager({
                     style={{ width: `${100 - leftPaneWidth}%` }}
                 >
                     <FileExplorer
+                        connectionId={connectionId}
                         title="Remote Files"
                         path={remotePath}
                         onPathChange={onRemotePathChange}
                         selectedFiles={selectedRemoteFiles}
                         onSelectionChange={setSelectedRemoteFiles}
                         isLocal={false}
-                        disabled={!connectionState.status.connected}
+                        disabled={!isConnected}
                     />
                 </div>
             </div>

@@ -7,16 +7,21 @@ import { PlusIcon, ServerIcon } from '@heroicons/react/24/outline'
 export default function ProfileSidebar() {
     const [showProfileDialog, setShowProfileDialog] = useState(false)
     const [editingProfile, setEditingProfile] = useState<ConnectionProfile | null>(null)
-    const { state, connectMutation, disconnectMutation } = useConnection()
+    const { state, connectMutation, disconnectMutation, dispatch } = useConnection()
 
     const handleConnect = (profile: ConnectionProfile) => {
-        // If clicking the currently connected profile, disconnect
-        if (state.currentProfile?.id === profile.id && state.status.connected) {
-            disconnectMutation.mutate()
+        // Find if this profile already has an active connection
+        const existingConnection = Array.from(state.activeConnections.values()).find(
+            conn => conn.profile.id === profile.id
+        )
+
+        if (existingConnection) {
+            // If already connected, switch to this connection
+            dispatch({ type: 'SET_CURRENT_CONNECTION', payload: existingConnection.id })
             return
         }
 
-        // Ensure null values are converted to undefined
+        // Otherwise, create a new connection
         const cleanProfile = {
             ...profile,
             keyPath: profile.keyPath || undefined,
@@ -25,21 +30,35 @@ export default function ProfileSidebar() {
         connectMutation.mutate(cleanProfile)
     }
 
+    const handleDisconnect = (connectionId: string, event: React.MouseEvent) => {
+        event.stopPropagation()
+        disconnectMutation.mutate(connectionId)
+    }
+
     const handleCreateProfile = () => {
         setEditingProfile(null)
         setShowProfileDialog(true)
     }
 
+    const getProfileConnection = (profile: ConnectionProfile) => {
+        return Array.from(state.activeConnections.values()).find(
+            conn => conn.profile.id === profile.id
+        )
+    }
+
     const isProfileActive = (profile: ConnectionProfile) => {
-        return state.currentProfile?.id === profile.id
+        const connection = getProfileConnection(profile)
+        return connection?.id === state.currentConnectionId
     }
 
     const isProfileConnected = (profile: ConnectionProfile) => {
-        return isProfileActive(profile) && state.status.connected
+        const connection = getProfileConnection(profile)
+        return connection?.status.connected || false
     }
 
     const isProfileConnecting = (profile: ConnectionProfile) => {
-        return isProfileActive(profile) && state.status.connecting
+        const connection = getProfileConnection(profile)
+        return connection?.status.connecting || false
     }
 
     return (
@@ -65,61 +84,68 @@ export default function ProfileSidebar() {
                         </div>
                     ) : (
                         <div className="p-2 space-y-1">
-                            {state.profiles.map((profile) => (
-                                <button
-                                    key={profile.id}
-                                    onClick={() => handleConnect(profile)}
-                                    disabled={state.isLoading && !isProfileActive(profile)}
-                                    className={`w-full text-left p-3 rounded-md transition-colors ${
-                                        isProfileConnected(profile)
-                                            ? 'bg-primary-600 text-white'
-                                            : isProfileActive(profile)
-                                            ? 'bg-gray-700 text-white'
-                                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                                    } ${
-                                        state.isLoading && !isProfileActive(profile)
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : ''
-                                    }`}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center space-x-2">
-                                                <ServerIcon className="h-4 w-4 flex-shrink-0" />
-                                                <div className="font-medium truncate">{profile.name}</div>
+                            {state.profiles.map((profile) => {
+                                const connection = getProfileConnection(profile)
+                                return (
+                                    <div key={profile.id} className="relative">
+                                        <button
+                                            onClick={() => handleConnect(profile)}
+                                            disabled={state.isLoading && !isProfileActive(profile)}
+                                            className={`w-full text-left p-3 rounded-md transition-colors ${isProfileConnected(profile)
+                                                ? 'bg-primary-600 text-white'
+                                                : isProfileActive(profile)
+                                                    ? 'bg-gray-700 text-white'
+                                                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                                } ${state.isLoading && !isProfileActive(profile)
+                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    : ''
+                                                }`}
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center space-x-2">
+                                                        <ServerIcon className="h-4 w-4 flex-shrink-0" />
+                                                        <div className="font-medium truncate">{profile.name}</div>
+                                                    </div>
+                                                    <div className="text-xs mt-1 truncate opacity-80">
+                                                        {profile.username}@{profile.host}
+                                                    </div>
+                                                    <div className="text-xs mt-0.5 opacity-60">
+                                                        Port: {profile.port} • {profile.authType === 'password' ? 'Password' : 'SSH Key'}
+                                                    </div>
+                                                </div>
+                                                {isProfileConnecting(profile) && (
+                                                    <div className="ml-2 flex-shrink-0">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-xs mt-1 truncate opacity-80">
-                                                {profile.username}@{profile.host}
-                                            </div>
-                                            <div className="text-xs mt-0.5 opacity-60">
-                                                Port: {profile.port} • {profile.authType === 'password' ? 'Password' : 'SSH Key'}
-                                            </div>
-                                        </div>
-                                        {isProfileConnecting(profile) && (
-                                            <div className="ml-2 flex-shrink-0">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                            </div>
-                                        )}
+                                            {isProfileConnected(profile) && (
+                                                <div className="mt-2 text-xs flex items-center justify-between">
+                                                    <div className="flex items-center space-x-1">
+                                                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                                        <span>{isProfileActive(profile) ? 'Active' : 'Connected'}</span>
+                                                    </div>
+                                                    {connection && (
+                                                        <button
+                                                            onClick={(e) => handleDisconnect(connection.id, e)}
+                                                            className="text-xs px-2 py-0.5 bg-red-500 hover:bg-red-600 rounded"
+                                                        >
+                                                            Disconnect
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </button>
                                     </div>
-                                    {isProfileConnected(profile) && (
-                                        <div className="mt-2 text-xs flex items-center space-x-1">
-                                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                            <span>Connected</span>
-                                        </div>
-                                    )}
-                                </button>
-                            ))}
+                                )
+                            })}
                         </div>
                     )}
                 </div>
 
                 {/* Footer with Status */}
                 <div className="p-3 border-t border-gray-700 text-xs">
-                    {state.status.error && (
-                        <div className="text-red-400 mb-2 p-2 bg-red-900/20 rounded">
-                            {state.status.error}
-                        </div>
-                    )}
                     <div className="text-gray-400">
                         {state.profiles.length} {state.profiles.length === 1 ? 'profile' : 'profiles'}
                     </div>

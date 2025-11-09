@@ -118,7 +118,7 @@ export class TransferService {
   private async startTransfer(transfer: TransferItem): Promise<void> {
     console.log(`Starting transfer ${transfer.id}:`, transfer)
 
-    const ssh = this.connectionService.getSshClient()
+    const ssh = this.connectionService.getSshClient(transfer.connectionId)
     if (!ssh) {
       console.error(`Transfer ${transfer.id}: SSH client not available`)
       await this.db.updateTransfer(transfer.id, {
@@ -137,9 +137,9 @@ export class TransferService {
 
       console.log(`Transfer ${transfer.id}: Updated status to active`)
       this.emitTransferUpdate(transfer.id)
-      
+
       // Create worker for the transfer
-      const sshConfig = this.connectionService.getConnectionConfig()
+      const sshConfig = this.connectionService.getConnectionConfig(transfer.connectionId)
       if (!sshConfig) {
         await this.db.updateTransfer(transfer.id, {
           status: 'failed',

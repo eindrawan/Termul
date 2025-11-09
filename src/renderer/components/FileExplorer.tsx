@@ -8,6 +8,7 @@ type SortDirection = 'asc' | 'desc'
 type ColumnField = 'name' | 'size' | 'modified' | 'permissions'
 
 interface FileExplorerProps {
+    connectionId?: string
     title: string
     path: string
     onPathChange: (path: string) => void
@@ -18,6 +19,7 @@ interface FileExplorerProps {
 }
 
 export default function FileExplorer({
+    connectionId,
     title,
     path,
     onPathChange,
@@ -49,13 +51,13 @@ export default function FileExplorer({
 
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error } = useQuery({
-        queryKey: [isLocal ? 'local-files' : 'remote-files', path, !disabled],
+        queryKey: [isLocal ? 'local-files' : 'remote-files', connectionId, path, !disabled],
         queryFn: () => {
             return isLocal
                 ? window.electronAPI.listLocalFiles(path)
-                : window.electronAPI.listRemoteFiles(path)
+                : window.electronAPI.listRemoteFiles(connectionId!, path)
         },
-        enabled: !disabled,
+        enabled: !disabled && (isLocal || !!connectionId),
         retry: 1,
         retryDelay: 1000,
         staleTime: 0, // Always consider data stale to ensure fresh fetches

@@ -2,30 +2,45 @@ import { NodeSSH } from 'node-ssh'
 import { ConnectionProfile, ConnectionStatus } from '../../renderer/types'
 import { DatabaseService } from './DatabaseService'
 import { CredentialService } from './CredentialService'
+import { randomUUID } from 'crypto'
+
+interface ConnectionInstance {
+  id: string
+  ssh: NodeSSH
+  config: any
+  status: ConnectionStatus
+  profile: ConnectionProfile
+}
 
 export class ConnectionService {
-  private ssh: NodeSSH | null = null
-  private status: ConnectionStatus = { connected: false, connecting: false }
+  private connections: Map<string, ConnectionInstance> = new Map()
   private db: DatabaseService
   private credentials: CredentialService
-  private connectionConfig: any = null
 
   constructor() {
     this.db = new DatabaseService()
     this.credentials = new CredentialService()
   }
 
-  async connect(profile: ConnectionProfile): Promise<ConnectionStatus> {
+  async connect(profile: ConnectionProfile): Promise<{ connectionId: string; status: ConnectionStatus }> {
+    const connectionId = randomUUID()
+
     try {
-      this.status = { connected: false, connecting: true, host: profile.host, username: profile.username }
-      this.emitStatusChange()
+      const status: ConnectionStatus = {
+        connected: false,
+        connecting: true,
+        host: profile.host,
+        username: profile.username
+      }
+
+      this.emitStatusChange(connectionId, status)
 
       // Get credentials
       const auth = await this.credentials.getAuthCredentials(profile)
 
       // Create SSH connection
-      this.ssh = new NodeSSH()
-      
+      const ssh = new NodeSSH()
+
       const config: any = {
         host: profile.host,
         port: profile.port,
@@ -35,48 +50,62 @@ export class ConnectionService {
         passphrase: auth.passphrase,
         readyTimeout: 30000,
       }
-      
-      this.connectionConfig = config
-      await this.ssh.connect(config)
 
-      this.status = {
+      await ssh.connect(config)
+
+      const connectedStatus: ConnectionStatus = {
         connected: true,
         connecting: false,
         host: profile.host,
         username: profile.username
       }
-      this.emitStatusChange()
 
-      return this.status
+      this.connections.set(connectionId, {
+        id: connectionId,
+        ssh,
+        config,
+        status: connectedStatus,
+        profile
+      })
+
+      this.emitStatusChange(connectionId, connectedStatus)
+
+      return { connectionId, status: connectedStatus }
     } catch (error) {
-      this.status = {
+      const errorStatus: ConnectionStatus = {
         connected: false,
         connecting: false,
         host: profile.host,
         username: profile.username,
         error: error instanceof Error ? error.message : String(error)
       }
-      this.emitStatusChange()
+      this.emitStatusChange(connectionId, errorStatus)
       throw error
     }
   }
 
-  async disconnect(): Promise<void> {
+  async disconnect(connectionId: string): Promise<void> {
     try {
-      if (this.ssh) {
-        await this.ssh.dispose()
-        this.ssh = null
+      const connection = this.connections.get(connectionId)
+      if (connection) {
+        await connection.ssh.dispose()
+        this.connections.delete(connectionId)
+
+        const status: ConnectionStatus = { connected: false, connecting: false }
+        this.emitStatusChange(connectionId, status)
       }
-      this.connectionConfig = null
-      this.status = { connected: false, connecting: false }
-      this.emitStatusChange()
     } catch (error) {
       console.error('Disconnect error:', error)
     }
   }
 
-  getStatus(): ConnectionStatus {
-    return this.status
+  getStatus(connectionId: string): ConnectionStatus | null {
+    const connection = this.connections.get(connectionId)
+    return connection ? connection.status : null
+  }
+
+  getAllConnections(): Map<string, ConnectionInstance> {
+    return this.connections
   }
 
   async saveProfile(profile: ConnectionProfile): Promise<ConnectionProfile> {
@@ -91,21 +120,26 @@ export class ConnectionService {
     await this.db.deleteProfile(id)
   }
 
-  getSshClient(): NodeSSH | null {
-    return this.ssh
+  getSshClient(connectionId: string): NodeSSH | null {
+    const connection = this.connections.get(connectionId)
+    return connection ? connection.ssh : null
   }
 
-  getConnectionConfig(): any {
-    return this.connectionConfig
+  getConnectionConfig(connectionId: string): any {
+    const connection = this.connections.get(connectionId)
+    return connection ? connection.config : null
   }
 
+  getConnectionProfile(connectionId: string): ConnectionProfile | null {
+    const connection = this.connections.get(connectionId)
+    return connection ? connection.profile : null
+  }
 
-  private emitStatusChange(): void {
+  private emitStatusChange(connectionId: string, status: ConnectionStatus): void {
     // This would be emitted to the renderer process
     if ((global as any).mainWindow) {
-      (global as any).mainWindow.webContents.send('connection-status-change', this.status)
+      (global as any).mainWindow.webContents.send('connection-status-change', { connectionId, status })
     }
-  
   }
 
   async storePassword(profile: any, password: string): Promise<string> {

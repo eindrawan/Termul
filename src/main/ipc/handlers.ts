@@ -27,6 +27,7 @@ const ConnectionProfileSchema = z.object({
 
 const TransferDescriptorSchema = z.object({
   id: z.string().optional(),
+  connectionId: z.string(),
   sourcePath: z.string(),
   destinationPath: z.string(),
   direction: z.enum(['upload', 'download']),
@@ -47,17 +48,17 @@ export function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('disconnect-from-host', async () => {
+  ipcMain.handle('disconnect-from-host', async (_, connectionId: string) => {
     try {
-      return await connectionService.disconnect()
+      return await connectionService.disconnect(connectionId)
     } catch (error) {
       console.error('Disconnect error:', error)
       throw error
     }
   })
 
-  ipcMain.handle('get-connection-status', async () => {
-    return connectionService.getStatus()
+  ipcMain.handle('get-connection-status', async (_, connectionId: string) => {
+    return connectionService.getStatus(connectionId)
   })
 
   // Profile handlers
@@ -122,9 +123,9 @@ export function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('list-remote-files', async (_, path) => {
+  ipcMain.handle('list-remote-files', async (_, connectionId: string, path: string) => {
     try {
-      return await fileService.listRemoteFiles(path)
+      return await fileService.listRemoteFiles(connectionId, path)
     } catch (error) {
       console.error('List remote files error:', error)
       throw error
@@ -189,29 +190,38 @@ export function setupIpcHandlers() {
   })
 
   // Terminal handlers
-  ipcMain.handle('open-terminal', async () => {
+  ipcMain.handle('open-terminal', async (_, connectionId: string) => {
     try {
-      return await terminalService.openTerminal()
+      return await terminalService.openTerminal(connectionId)
     } catch (error) {
       console.error('Open terminal error:', error)
       throw error
     }
   })
 
-  ipcMain.handle('close-terminal', async () => {
+  ipcMain.handle('close-terminal', async (_, connectionId: string) => {
     try {
-      return await terminalService.closeTerminal()
+      return await terminalService.closeTerminal(connectionId)
     } catch (error) {
       console.error('Close terminal error:', error)
       throw error
     }
   })
 
-  ipcMain.handle('send-terminal-input', async (_, data) => {
+  ipcMain.handle('send-terminal-input', async (_, connectionId: string, data: string) => {
     try {
-      return await terminalService.sendInput(data)
+      return await terminalService.sendInput(connectionId, data)
     } catch (error) {
       console.error('Send terminal input error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('resize-terminal', async (_, connectionId: string, cols: number, rows: number) => {
+    try {
+      return terminalService.resizeTerminal(connectionId, cols, rows)
+    } catch (error) {
+      console.error('Resize terminal error:', error)
       throw error
     }
   })

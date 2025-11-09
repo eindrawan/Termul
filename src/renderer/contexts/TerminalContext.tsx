@@ -54,7 +54,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
     // Mutation for opening terminal
     const openMutation = useMutation({
-        mutationFn: () => window.electronAPI.openTerminal(),
+        mutationFn: (connectionId: string) => window.electronAPI.openTerminal(connectionId),
         onSuccess: (session: TerminalSession) => {
             dispatch({ type: 'SET_SESSION', payload: session })
             dispatch({ type: 'SET_CONNECTED', payload: true })
@@ -63,7 +63,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
     // Mutation for closing terminal
     const closeMutation = useMutation({
-        mutationFn: () => window.electronAPI.closeTerminal(),
+        mutationFn: (connectionId: string) => window.electronAPI.closeTerminal(connectionId),
         onSuccess: () => {
             dispatch({ type: 'SET_SESSION', payload: undefined })
             dispatch({ type: 'SET_CONNECTED', payload: false })
@@ -73,16 +73,17 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
     // Mutation for sending input
     const sendInputMutation = useMutation({
-        mutationFn: (data: string) => window.electronAPI.sendTerminalInput(data),
+        mutationFn: ({ connectionId, data }: { connectionId: string; data: string }) =>
+            window.electronAPI.sendTerminalInput(connectionId, data),
     })
 
     // Set up terminal output listener
     useEffect(() => {
         console.log('[TerminalContext] Setting up terminal output listener')
 
-        const handleOutput = (data: string) => {
+        const handleOutput = (data: { connectionId: string; data: string }) => {
             console.log('[TerminalContext] Received output from backend:', JSON.stringify(data))
-            dispatch({ type: 'ADD_OUTPUT', payload: data })
+            dispatch({ type: 'ADD_OUTPUT', payload: data.data })
         }
 
         window.electronAPI.onTerminalOutput(handleOutput)

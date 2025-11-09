@@ -4,12 +4,19 @@ import { FitAddon } from '@xterm/addon-fit'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
 
-export default function Terminal() {
+interface TerminalProps {
+    connectionId: string
+}
+
+export default function Terminal({ connectionId }: TerminalProps) {
     const terminalRef = useRef<HTMLDivElement>(null)
     const xtermRef = useRef<XTerm | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
     const { state: connectionState } = useConnection()
     const { state: terminalState, openMutation, closeMutation, sendInputMutation } = useTerminal()
+
+    const connection = connectionState.activeConnections.get(connectionId)
+    const isConnected = connection?.status.connected || false
 
     // Initialize xterm when component mounts
     useEffect(() => {
@@ -45,7 +52,7 @@ export default function Terminal() {
         // Handle user input
         term.onData((data: string) => {
             console.log('[Terminal] User input:', data)
-            sendInputMutation.mutate(data)
+            sendInputMutation.mutate({ connectionId, data })
         })
 
         // Store references
@@ -121,11 +128,11 @@ export default function Terminal() {
 
     // Auto-open terminal when connected
     useEffect(() => {
-        if (connectionState.status.connected && !terminalState.isConnected && !openMutation.isPending) {
-            console.log('[Terminal] Auto-opening terminal')
-            openMutation.mutate()
+        if (isConnected && !terminalState.isConnected && !openMutation.isPending) {
+            console.log('[Terminal] Auto-opening terminal for connection:', connectionId)
+            openMutation.mutate(connectionId)
         }
-    }, [connectionState.status.connected, terminalState.isConnected])
+    }, [isConnected, terminalState.isConnected, connectionId])
 
     // Handle terminal visibility changes
     useEffect(() => {
@@ -145,15 +152,15 @@ export default function Terminal() {
     }, [terminalState.isConnected])
 
     const handleOpenTerminal = () => {
-        if (!connectionState.status.connected) {
+        if (!isConnected) {
             alert('Please connect to a host first')
             return
         }
-        openMutation.mutate()
+        openMutation.mutate(connectionId)
     }
 
     const handleCloseTerminal = () => {
-        closeMutation.mutate()
+        closeMutation.mutate(connectionId)
     }
 
     const handleClearTerminal = () => {
@@ -170,7 +177,7 @@ export default function Terminal() {
                     <h3 className="text-white font-medium">Terminal</h3>
                     {terminalState.session?.host && (
                         <span className="text-gray-400 text-sm">
-                            {terminalState.session.username || connectionState.status.username}@{terminalState.session.host}
+                            {terminalState.session.username || connection?.profile.username}@{terminalState.session.host}
                         </span>
                     )}
                 </div>
@@ -220,7 +227,7 @@ export default function Terminal() {
                         <div className="text-center">
                             <div className="text-lg mb-2">Terminal not connected</div>
                             <div className="text-sm">
-                                {!connectionState.status.connected
+                                {!isConnected
                                     ? 'Connect to a host to open a terminal session'
                                     : 'Click "Open Terminal" to start a session'}
                             </div>
