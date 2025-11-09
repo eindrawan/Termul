@@ -109,18 +109,46 @@ export default function FileExplorer({
         return sortDirection === 'asc' ? '↑' : '↓'
     }
 
-    const handleFileClick = (file: FileSystemEntry) => {
-        if (file.type === 'directory') {
-            onPathChange(file.path)
-        } else {
-            // Toggle file selection
-            const isSelected = selectedFiles.some(f => f.path === file.path)
+    // Track double-click timing
+    const [lastClickTime, setLastClickTime] = useState<number>(0)
+    const [lastClickedFile, setLastClickedFile] = useState<string | null>(null)
+
+    const handleFileClick = (file: FileSystemEntry, event: React.MouseEvent) => {
+        // Prevent text selection
+        event.preventDefault()
+
+        const currentTime = Date.now()
+        const timeDiff = currentTime - lastClickTime
+        const isDoubleClick = timeDiff < 300 && lastClickedFile === file.path
+
+        const isSelected = selectedFiles.some(f => f.path === file.path)
+
+        if (isDoubleClick) {
+            // Double click detected
+            if (file.type === 'directory') {
+                onPathChange(file.path)
+            }
+            setLastClickTime(0)
+            setLastClickedFile(null)
+            return
+        }
+
+        // Single click - provide immediate visual feedback
+        if (event.ctrlKey) {
+            // Ctrl+click: add/remove from selection (multi-select)
             if (isSelected) {
                 onSelectionChange(selectedFiles.filter(f => f.path !== file.path))
             } else {
                 onSelectionChange([...selectedFiles, file])
             }
+        } else {
+            // Normal click: select only this file (clear previous selection)
+            onSelectionChange([file])
         }
+
+        // Store click info for double-click detection
+        setLastClickTime(currentTime)
+        setLastClickedFile(file.path)
     }
 
     const handleBreadcrumbClick = (index: number) => {
@@ -270,7 +298,7 @@ export default function FileExplorer({
                                     sortedFiles.map((file) => (
                                         <tr
                                             key={file.path}
-                                            onClick={() => handleFileClick(file)}
+                                            onClick={(e) => handleFileClick(file, e)}
                                             className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
                                         >
                                             <td>

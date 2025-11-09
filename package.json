@@ -5,12 +5,13 @@
     "main": "dist/main/main/main.js",
     "homepage": "./",
     "scripts": {
-        "dev": "npm run build:preload && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+        "dev": "npm run copy:workers && npm run build:preload && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
         "dev:vite": "vite",
         "dev:electron": "wait-on http://localhost:5173 && electron .",
-        "build": "npm run build:renderer && npm run build:main && npm run build:preload",
+        "build": "npm run build:renderer && npm run build:main && npm run copy:workers && npm run build:preload",
         "build:renderer": "vite build",
         "build:main": "tsc -p tsconfig.main.json",
+        "copy:workers": "if not exist dist\\main\\workers mkdir dist\\main\\workers && copy src\\main\\workers\\*.js dist\\main\\workers\\",
         "build:preload": "tsc -p tsconfig.preload.json",
         "dist": "npm run build && electron-builder",
         "dist:win": "npm run build && electron-builder --win",
@@ -80,6 +81,7 @@
         },
         "files": [
             "dist/**/*",
+            "src/main/workers/*.js",
             "node_modules/**/*"
         ],
         "win": {

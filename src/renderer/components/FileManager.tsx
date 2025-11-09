@@ -1,51 +1,28 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTransfer } from '../contexts/TransferContext'
 import { FileSystemEntry, TransferDescriptor } from '../types'
 import FileExplorer from './FileExplorer'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
-export default function FileManager() {
-    // Initialize with user's home directory or fallback to C:\
-    const [localPath, setLocalPath] = useState('C:\\')
-    const [remotePath, setRemotePath] = useState('/')
+interface FileManagerProps {
+    localPath: string
+    onLocalPathChange: (path: string) => void
+    remotePath: string
+    onRemotePathChange: (path: string) => void
+}
 
+export default function FileManager({
+    localPath,
+    onLocalPathChange,
+    remotePath,
+    onRemotePathChange
+}: FileManagerProps) {
     const [selectedLocalFiles, setSelectedLocalFiles] = useState<FileSystemEntry[]>([])
     const [selectedRemoteFiles, setSelectedRemoteFiles] = useState<FileSystemEntry[]>([])
 
     const { state: connectionState } = useConnection()
     const { enqueueMutation } = useTransfer()
-
-    // Get user's home directory on component mount
-    useEffect(() => {
-        const getHomeDirectory = async () => {
-            try {
-                const homeDir = await window.electronAPI.getHomeDirectory()
-                if (homeDir) {
-                    setLocalPath(homeDir)
-                }
-            } catch (error) {
-                console.warn('Could not get home directory, using default:', error)
-                setLocalPath('C:\\Users')
-            }
-        }
-
-        getHomeDirectory()
-    }, [])
-
-    // Ensure remote path is always "/" when not connected or when component mounts
-    useEffect(() => {
-        if (!connectionState.status.connected && remotePath !== '/') {
-            setRemotePath('/')
-        }
-    }, [connectionState.status.connected, remotePath])
-
-    // Reset remote path to "/" when connecting or connected (start fresh)
-    useEffect(() => {
-        if (connectionState.status.connecting || connectionState.status.connected) {
-            setRemotePath('/')
-        }
-    }, [connectionState.status.connecting, connectionState.status.connected])
 
     const handleUpload = () => {
         if (selectedLocalFiles.length === 0 || !connectionState.status.connected) return
@@ -109,7 +86,7 @@ export default function FileManager() {
                     <FileExplorer
                         title="Local Files"
                         path={localPath}
-                        onPathChange={setLocalPath}
+                        onPathChange={onLocalPathChange}
                         selectedFiles={selectedLocalFiles}
                         onSelectionChange={setSelectedLocalFiles}
                         isLocal={true}
@@ -121,7 +98,7 @@ export default function FileManager() {
                     <FileExplorer
                         title="Remote Files"
                         path={remotePath}
-                        onPathChange={setRemotePath}
+                        onPathChange={onRemotePathChange}
                         selectedFiles={selectedRemoteFiles}
                         onSelectionChange={setSelectedRemoteFiles}
                         isLocal={false}

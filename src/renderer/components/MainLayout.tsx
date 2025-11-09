@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { TabType } from '../types'
 import { useConnection } from '../contexts/ConnectionContext'
 import ConnectionBar from './ConnectionBar'
@@ -8,7 +8,26 @@ import Terminal from './Terminal'
 
 export default function MainLayout() {
     const [activeTab, setActiveTab] = useState<TabType>('file-manager')
+    const [localPath, setLocalPath] = useState('C:\\')
+    const [remotePath, setRemotePath] = useState('/')
     const { state: connectionState } = useConnection()
+
+    // Get user's home directory on component mount
+    useEffect(() => {
+        const getHomeDirectory = async () => {
+            try {
+                const homeDir = await window.electronAPI.getHomeDirectory()
+                if (homeDir) {
+                    setLocalPath(homeDir)
+                }
+            } catch (error) {
+                console.warn('Could not get home directory, using default:', error)
+                setLocalPath('C:\\Users')
+            }
+        }
+
+        getHomeDirectory()
+    }, [])
 
     const tabs: { id: TabType; label: string; icon: string }[] = [
         { id: 'file-manager', label: 'File Manager', icon: '📁' },
@@ -28,8 +47,8 @@ export default function MainLayout() {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
-                                ? 'border-primary-500 text-primary-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-primary-500 text-primary-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
                         <span className="mr-2">{tab.icon}</span>
@@ -40,18 +59,29 @@ export default function MainLayout() {
 
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
-                {activeTab === 'file-manager' && <FileManager />}
-                {activeTab === 'transfer-queue' && <TransferQueue />}
-                {activeTab === 'terminal' && <Terminal />}
+                <div className={`h-full ${activeTab === 'file-manager' ? 'block' : 'hidden'}`}>
+                    <FileManager
+                        localPath={localPath}
+                        onLocalPathChange={setLocalPath}
+                        remotePath={remotePath}
+                        onRemotePathChange={setRemotePath}
+                    />
+                </div>
+                <div className={`h-full ${activeTab === 'transfer-queue' ? 'block' : 'hidden'}`}>
+                    <TransferQueue />
+                </div>
+                <div className={`h-full ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
+                    <Terminal />
+                </div>
             </div>
 
             {/* Status Bar */}
             <div className="flex items-center justify-between px-4 py-1 bg-gray-800 text-white text-xs">
                 <div className="flex items-center space-x-4">
                     <span className={`status-indicator ${connectionState.status.connected ? 'status-connected' :
-                            connectionState.status.connecting ? 'status-connecting' :
-                                connectionState.status.error ? 'status-error' :
-                                    'status-disconnected'
+                        connectionState.status.connecting ? 'status-connecting' :
+                            connectionState.status.error ? 'status-error' :
+                                'status-disconnected'
                         }`}>
                         {connectionState.status.connected ? 'Connected' :
                             connectionState.status.connecting ? 'Connecting...' :

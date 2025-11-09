@@ -116,35 +116,68 @@ export class TransferService {
   }
 
   private async startTransfer(transfer: TransferItem): Promise<void> {
+    console.log(`Starting transfer ${transfer.id}:`, transfer)
+
     const ssh = this.connectionService.getSshClient()
     if (!ssh) {
-      await this.db.updateTransfer(transfer.id, { 
-        status: 'failed', 
-        error: 'Not connected to remote host' 
+      console.error(`Transfer ${transfer.id}: SSH client not available`)
+      await this.db.updateTransfer(transfer.id, {
+        status: 'failed',
+        error: 'Not connected to remote host'
       })
       this.emitTransferUpdate(transfer.id)
       return
     }
 
     try {
-      await this.db.updateTransfer(transfer.id, { 
-        status: 'active', 
-        startedAt: Math.floor(Date.now() / 1000) 
+      await this.db.updateTransfer(transfer.id, {
+        status: 'active',
+        startedAt: Math.floor(Date.now() / 1000)
       })
-      
+
+      console.log(`Transfer ${transfer.id}: Updated status to active`)
       this.emitTransferUpdate(transfer.id)
       
       // Create worker for the transfer
-      const sshConfig = (ssh as any).getConfig ? (ssh as any).getConfig() : {}
-      const worker = new Worker(join(__dirname, 'transfer-worker.js'), {
+      const sshConfig = this.connectionService.getConnectionConfig()
+      if (!sshConfig) {
+        await this.db.updateTransfer(transfer.id, {
+          status: 'failed',
+          error: 'Connection configuration not available'
+        })
+        this.emitTransferUpdate(transfer.id)
+        return
+      }
+
+      const worker = new Worker(join(__dirname, '../../workers/transfer-worker.js'), {
         workerData: {
           transfer,
           sshConfig,
-        } as TransferWorkerData
+        } as TransferWorkerData,
+        stdout: true,
+        stderr: true
       })
-      
+
+      // Capture worker stdout/stderr
+      if (worker.stdout) {
+        worker.stdout.on('data', (data) => {
+          console.log(`Worker ${transfer.id} stdout:`, data.toString())
+        })
+      }
+
+      if (worker.stderr) {
+        worker.stderr.on('data', (data) => {
+          console.error(`Worker ${transfer.id} stderr:`, data.toString())
+        })
+      }
+
       this.activeWorkers.set(transfer.id, worker)
-      
+
+      console.log(`Transfer ${transfer.id}: Worker created, sending start message`)
+
+      // Start the worker
+      worker.postMessage({ type: 'start' })
+
       // Set up progress tracking
       const startTime = Date.now()
       let lastBytesTransferred = 0
@@ -204,13 +237,20 @@ export class TransferService {
       
       worker.on('error', (error) => {
         console.error(`Transfer worker error for ${transfer.id}:`, error)
-        this.db.updateTransfer(transfer.id, { 
-          status: 'failed', 
+        this.db.updateTransfer(transfer.id, {
+          status: 'failed',
           error: error.message,
-          completedAt: Math.floor(Date.now() / 1000) 
+          completedAt: Math.floor(Date.now() / 1000)
         })
         this.emitTransferUpdate(transfer.id)
         this.cleanupTransfer(transfer.id)
+      })
+
+      worker.on('exit', (code) => {
+        console.log(`Transfer worker ${transfer.id} exited with code ${code}`)
+        if (code !== 0) {
+          console.error(`Transfer worker ${transfer.id} stopped with exit code ${code}`)
+        }
       })
       
     } catch (error) {
