@@ -417,4 +417,92 @@ export class FileService {
     // Normalize path separators and remove redundant slashes for non-root paths
     return path.replace(/\/+/g, '/').replace(/\/$/, '')
   }
+
+  async readLocalFile(path: string): Promise<string> {
+    try {
+      return await fs.readFile(path, 'utf-8')
+    } catch (error) {
+      console.error(`Failed to read local file ${path}:`, error)
+      throw error
+    }
+  }
+
+  async writeLocalFile(path: string, content: string): Promise<void> {
+    try {
+      await fs.writeFile(path, content, 'utf-8')
+    } catch (error) {
+      console.error(`Failed to write local file ${path}:`, error)
+      throw error
+    }
+  }
+
+  async readRemoteFile(connectionId: string, path: string): Promise<string> {
+    const ssh = this.connectionService.getSshClient(connectionId)
+    if (!ssh) {
+      throw new Error('Not connected to remote host')
+    }
+
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
+    if (!connectionConfig) {
+      throw new Error('Connection configuration not available')
+    }
+
+    const sftp = new SFTPClient()
+    
+    try {
+      await sftp.connect({
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        username: connectionConfig.username,
+        password: connectionConfig.password,
+        privateKey: connectionConfig.privateKey,
+        passphrase: connectionConfig.passphrase,
+        readyTimeout: 30000
+      })
+      
+      const result = await sftp.get(path)
+      // Convert Buffer to string if needed
+      return Buffer.isBuffer(result) ? result.toString('utf-8') : result as string
+    } catch (error) {
+      console.error(`Failed to read remote file ${path}:`, error)
+      throw error
+    } finally {
+      await sftp.end()
+    }
+  }
+
+  async writeRemoteFile(connectionId: string, path: string, content: string): Promise<void> {
+    const ssh = this.connectionService.getSshClient(connectionId)
+    if (!ssh) {
+      throw new Error('Not connected to remote host')
+    }
+
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
+    if (!connectionConfig) {
+      throw new Error('Connection configuration not available')
+    }
+
+    const sftp = new SFTPClient()
+    
+    try {
+      await sftp.connect({
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        username: connectionConfig.username,
+        password: connectionConfig.password,
+        privateKey: connectionConfig.privateKey,
+        passphrase: connectionConfig.passphrase,
+        readyTimeout: 30000
+      })
+      
+      // Create a temporary buffer from the content
+      const buffer = Buffer.from(content, 'utf-8')
+      await sftp.put(buffer, path)
+    } catch (error) {
+      console.error(`Failed to write remote file ${path}:`, error)
+      throw error
+    } finally {
+      await sftp.end()
+    }
+  }
 }

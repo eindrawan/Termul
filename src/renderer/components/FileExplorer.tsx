@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { FileSystemEntry } from '../types'
 import { useQuery } from '@tanstack/react-query'
+import ContextMenu from './ContextMenu'
+import FileEditor from './FileEditor'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
@@ -16,6 +18,8 @@ interface FileExplorerProps {
     onSelectionChange: (files: FileSystemEntry[]) => void
     isLocal: boolean
     disabled?: boolean
+    onUpload?: (files: FileSystemEntry[]) => void
+    onDownload?: (files: FileSystemEntry[]) => void
 }
 
 export default function FileExplorer({
@@ -27,6 +31,8 @@ export default function FileExplorer({
     onSelectionChange,
     isLocal,
     disabled = false,
+    onUpload,
+    onDownload,
 }: FileExplorerProps) {
     const [files, setFiles] = useState<FileSystemEntry[]>([])
     const [sortField, setSortField] = useState<SortField>('name')
@@ -48,6 +54,17 @@ export default function FileExplorer({
     const [isResizing, setIsResizing] = useState<ColumnField | null>(null)
     const [resizeStartX, setResizeStartX] = useState(0)
     const [resizeStartWidth, setResizeStartWidth] = useState(0)
+
+    // Context menu state
+    const [contextMenu, setContextMenu] = useState<{
+        x: number
+        y: number
+        file: FileSystemEntry | null
+    } | null>(null)
+
+    // File editor state
+    const [editorFile, setEditorFile] = useState<FileSystemEntry | null>(null)
+    const [isEditorOpen, setIsEditorOpen] = useState(false)
 
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error } = useQuery({
@@ -241,6 +258,52 @@ export default function FileExplorer({
         setLastClickedFile(file.path)
     }
 
+    const handleContextMenu = (file: FileSystemEntry, event: React.MouseEvent) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        // Select the file if it's not already selected
+        if (!selectedFiles.some(f => f.path === file.path)) {
+            onSelectionChange([file])
+        }
+
+        setContextMenu({
+            x: event.clientX,
+            y: event.clientY,
+            file
+        })
+    }
+
+    const handleContextMenuClose = () => {
+        setContextMenu(null)
+    }
+
+    const handleDelete = async (file: FileSystemEntry) => {
+        try {
+            if (isLocal) {
+                await window.electronAPI.deleteLocalFile(file.path)
+            } else if (connectionId) {
+                await window.electronAPI.deleteRemoteFile(connectionId, file.path)
+            }
+            // Refresh the file list
+            window.location.reload()
+        } catch (error) {
+            console.error('Failed to delete file:', error)
+            alert(`Failed to delete ${file.name}: ${error}`)
+        }
+    }
+
+    const handleEdit = (file: FileSystemEntry) => {
+        setEditorFile(file)
+        setIsEditorOpen(true)
+        handleContextMenuClose()
+    }
+
+    const handleEditorClose = () => {
+        setIsEditorOpen(false)
+        setEditorFile(null)
+    }
+
     const handleBreadcrumbClick = (index: number) => {
         const breadcrumbs = getBreadcrumbs()
         if (index < breadcrumbs.length) {
@@ -397,6 +460,7 @@ export default function FileExplorer({
                                         <tr
                                             key={file.path}
                                             onClick={(e) => handleFileClick(file, e)}
+                                            onContextMenu={(e) => handleContextMenu(file, e)}
                                             className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
                                         >
                                             <td style={{ width: `${columnWidths.name}%`, minWidth: 0 }}>
@@ -424,6 +488,32 @@ export default function FileExplorer({
                     </div>
                 )}
             </div>
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    file={contextMenu.file}
+                    isLocal={isLocal}
+                    connectionId={connectionId}
+                    onClose={handleContextMenuClose}
+                    onUpload={onUpload || (() => { })}
+                    onDownload={onDownload || (() => { })}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    selectedFiles={selectedFiles}
+                />
+            )}
+
+            {/* File Editor */}
+            <FileEditor
+                file={editorFile}
+                isOpen={isEditorOpen}
+                onClose={handleEditorClose}
+                connectionId={connectionId}
+                isLocal={isLocal}
+            />
         </div>
     )
 }

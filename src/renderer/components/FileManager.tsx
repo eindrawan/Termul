@@ -145,6 +145,7 @@ export default function FileManager({
                         selectedFiles={selectedLocalFiles}
                         onSelectionChange={setSelectedLocalFiles}
                         isLocal={true}
+                        onUpload={handleUpload}
                     />
                 </div>
 
@@ -173,6 +174,7 @@ export default function FileManager({
                         onSelectionChange={setSelectedRemoteFiles}
                         isLocal={false}
                         disabled={!isConnected}
+                        onDownload={handleDownload}
                     />
                 </div>
             </div>

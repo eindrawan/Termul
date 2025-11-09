@@ -15,8 +15,14 @@ export interface ElectronAPI {
   
   // File system operations
   listLocalFiles: (path: string) => Promise<any>
-  listRemoteFiles: (path: string) => Promise<any>
+  listRemoteFiles: (connectionId: string, path: string) => Promise<any>
   getHomeDirectory: () => Promise<string>
+  deleteLocalFile: (path: string) => Promise<any>
+  deleteRemoteFile: (connectionId: string, path: string) => Promise<any>
+  readLocalFile: (path: string) => Promise<string>
+  writeLocalFile: (path: string, content: string) => Promise<any>
+  readRemoteFile: (connectionId: string, path: string) => Promise<string>
+  writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
   
   // Transfer operations
   enqueueTransfers: (transfers: any[]) => Promise<any>

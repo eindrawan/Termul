@@ -142,6 +142,62 @@ export function setupIpcHandlers() {
     }
   })
 
+  // File operation handlers
+  ipcMain.handle('delete-local-file', async (_, path: string) => {
+    try {
+      return await fileService.deleteLocalFile(path)
+    } catch (error) {
+      console.error('Delete local file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('delete-remote-file', async (_, connectionId: string, path: string) => {
+    try {
+      return await fileService.deleteRemoteFile(connectionId, path)
+    } catch (error) {
+      console.error('Delete remote file error:', error)
+      throw error
+    }
+  })
+
+  // File content handlers for editing
+  ipcMain.handle('read-local-file', async (_, path: string) => {
+    try {
+      return await fileService.readLocalFile(path)
+    } catch (error) {
+      console.error('Read local file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('write-local-file', async (_, path: string, content: string) => {
+    try {
+      return await fileService.writeLocalFile(path, content)
+    } catch (error) {
+      console.error('Write local file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('read-remote-file', async (_, connectionId: string, path: string) => {
+    try {
+      return await fileService.readRemoteFile(connectionId, path)
+    } catch (error) {
+      console.error('Read remote file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('write-remote-file', async (_, connectionId: string, path: string, content: string) => {
+    try {
+      return await fileService.writeRemoteFile(connectionId, path, content)
+    } catch (error) {
+      console.error('Write remote file error:', error)
+      throw error
+    }
+  })
+
   // Transfer handlers
   ipcMain.handle('enqueue-transfers', async (_, transfers) => {
     try {

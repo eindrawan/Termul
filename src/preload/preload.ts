@@ -67,6 +67,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHomeDirectory: () =>
     ipcRenderer.invoke('get-home-directory'),
   
+  deleteLocalFile: (path: string) =>
+    ipcRenderer.invoke('delete-local-file', path),
+  
+  deleteRemoteFile: (connectionId: string, path: string) =>
+    ipcRenderer.invoke('delete-remote-file', connectionId, path),
+  
+  readLocalFile: (path: string) =>
+    ipcRenderer.invoke('read-local-file', path),
+  
+  writeLocalFile: (path: string, content: string) =>
+    ipcRenderer.invoke('write-local-file', path, content),
+  
+  readRemoteFile: (connectionId: string, path: string) =>
+    ipcRenderer.invoke('read-remote-file', connectionId, path),
+  
+  writeRemoteFile: (connectionId: string, path: string, content: string) =>
+    ipcRenderer.invoke('write-remote-file', connectionId, path, content),
+  
   // Transfer operations
   enqueueTransfers: (transfers: z.infer<typeof TransferDescriptorSchema>[]) =>
     ipcRenderer.invoke('enqueue-transfers', transfers),
@@ -147,6 +165,12 @@ declare global {
       listLocalFiles: (path: string) => Promise<any>
       listRemoteFiles: (connectionId: string, path: string) => Promise<any>
       getHomeDirectory: () => Promise<string>
+      deleteLocalFile: (path: string) => Promise<any>
+      deleteRemoteFile: (connectionId: string, path: string) => Promise<any>
+      readLocalFile: (path: string) => Promise<string>
+      writeLocalFile: (path: string, content: string) => Promise<any>
+      readRemoteFile: (connectionId: string, path: string) => Promise<string>
+      writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
       enqueueTransfers: (transfers: any[]) => Promise<any>
       getTransferQueue: () => Promise<any>
       pauseTransfer: (id: string) => Promise<any>
