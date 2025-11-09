@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { TabType } from '../types'
 import { useConnection } from '../contexts/ConnectionContext'
+import { useDeletion } from '../contexts/DeletionContext'
 import ProfileSidebar from './ProfileSidebar'
 import FileManager from './FileManager'
 import TransferQueue from './TransferQueue'
@@ -10,6 +11,7 @@ export default function MainLayout() {
     const [activeTab, setActiveTab] = useState<TabType>('file-manager')
     const [localPath, setLocalPath] = useState('C:\\')
     const { state: connectionState, dispatch } = useConnection()
+    const { deletionProgress } = useDeletion()
 
     // Get current connection
     const currentConnection = connectionState.currentConnectionId
@@ -158,7 +160,14 @@ export default function MainLayout() {
                         )}
                     </div>
                     <div className="flex items-center space-x-4">
-                        <span>Termul SSH Client v0.1.0</span>
+                        {deletionProgress.isActive ? (
+                            <span className="text-yellow-300">
+                                Deleting: {deletionProgress.current}/{deletionProgress.total}
+                                {deletionProgress.currentFile && ` - ${deletionProgress.currentFile}`}
+                            </span>
+                        ) : (
+                            <span>Termul SSH Client v0.1.0</span>
+                        )}
                     </div>
                 </div>
             </div>

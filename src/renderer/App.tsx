@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConnectionProvider } from './contexts/ConnectionContext'
 import { TransferProvider } from './contexts/TransferContext'
 import { TerminalProvider } from './contexts/TerminalContext'
+import { DeletionProvider } from './contexts/DeletionContext'
 import MainLayout from './components/MainLayout'
 
 const queryClient = new QueryClient({
@@ -20,7 +21,9 @@ function App() {
             <ConnectionProvider>
                 <TransferProvider>
                     <TerminalProvider>
-                        <MainLayout />
+                        <DeletionProvider>
+                            <MainLayout />
+                        </DeletionProvider>
                     </TerminalProvider>
                 </TransferProvider>
             </ConnectionProvider>

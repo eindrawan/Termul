@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { FileSystemEntry } from '../types'
+import { useDeletion } from '../contexts/DeletionContext'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface ContextMenuProps {
     x: number
@@ -10,7 +12,7 @@ interface ContextMenuProps {
     onClose: () => void
     onUpload: (files: FileSystemEntry[]) => void
     onDownload: (files: FileSystemEntry[]) => void
-    onDelete: (file: FileSystemEntry) => void
+    onDelete: (file: FileSystemEntry, skipConfirmation?: boolean) => void
     onEdit: (file: FileSystemEntry) => void
     selectedFiles: FileSystemEntry[]
 }
@@ -29,6 +31,8 @@ export default function ContextMenu({
     selectedFiles
 }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
+    const { startDeletion, updateDeletionProgress, finishDeletion } = useDeletion()
+    const queryClient = useQueryClient()
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -94,9 +98,50 @@ export default function ContextMenu({
         onClose()
     }
 
-    const handleBulkDelete = () => {
+    const handleBulkDelete = async () => {
         if (selectedFiles.length > 0) {
-            selectedFiles.forEach(f => onDelete(f))
+            const fileCount = selectedFiles.length
+            const directoryCount = selectedFiles.filter(f => f.type === 'directory').length
+            const fileOnlyCount = fileCount - directoryCount
+
+            let confirmMessage = `Are you sure you want to delete `
+            if (directoryCount > 0 && fileOnlyCount > 0) {
+                confirmMessage += `${directoryCount} director${directoryCount === 1 ? 'y' : 'ies'} and ${fileOnlyCount} file${fileOnlyCount === 1 ? '' : 's'}?`
+            } else if (directoryCount > 0) {
+                confirmMessage += `${directoryCount} director${directoryCount === 1 ? 'y' : 'ies'}?`
+            } else {
+                confirmMessage += `${fileOnlyCount} file${fileOnlyCount === 1 ? '' : 's'}?`
+            }
+
+            if (!window.confirm(confirmMessage)) {
+                return // User cancelled the deletion
+            }
+
+            // Start deletion progress for bulk operation
+            startDeletion(selectedFiles.length)
+
+            try {
+                // Delete files one by one with progress updates
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i]
+                    updateDeletionProgress(i, file.name)
+
+                    // Pass skipConfirmation=true to avoid double confirmations
+                    await onDelete(file, true)
+                }
+
+                // Update progress to complete
+                updateDeletionProgress(selectedFiles.length)
+
+                // Refresh the file list after bulk deletion
+                const queryKey = isLocal ? 'local-files' : 'remote-files'
+                queryClient.invalidateQueries({ queryKey: [queryKey] })
+            } catch (error) {
+                console.error('Bulk deletion error:', error)
+            } finally {
+                // Finish deletion progress
+                finishDeletion()
+            }
         }
         onClose()
     }

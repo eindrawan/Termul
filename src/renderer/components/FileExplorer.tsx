@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { FileSystemEntry } from '../types'
 import { useQuery } from '@tanstack/react-query'
+import { useDeletion } from '../contexts/DeletionContext'
 import ContextMenu from './ContextMenu'
 import FileEditor from './FileEditor'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
@@ -37,6 +38,7 @@ export default function FileExplorer({
     const [files, setFiles] = useState<FileSystemEntry[]>([])
     const [sortField, setSortField] = useState<SortField>('name')
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+    const { startDeletion, updateDeletionProgress, finishDeletion } = useDeletion()
     const [columnWidths, setColumnWidths] = useState({
         name: 40, // percentage
         size: 20,
@@ -67,7 +69,7 @@ export default function FileExplorer({
     const [isEditorOpen, setIsEditorOpen] = useState(false)
 
     // Query for file listings
-    const { data: fetchedFiles = [], isLoading, error } = useQuery({
+    const { data: fetchedFiles = [], isLoading, error, refetch } = useQuery({
         queryKey: [isLocal ? 'local-files' : 'remote-files', connectionId, path, !disabled],
         queryFn: () => {
             return isLocal
@@ -278,18 +280,48 @@ export default function FileExplorer({
         setContextMenu(null)
     }
 
-    const handleDelete = async (file: FileSystemEntry) => {
+    const handleDelete = async (file: FileSystemEntry, skipConfirmation = false) => {
+        // Add confirmation dialog before deletion (unless skipped for bulk operations)
+        if (!skipConfirmation) {
+            const isDirectory = file.type === 'directory'
+            const confirmMessage = isDirectory
+                ? `Are you sure you want to delete the directory "${file.name}" and all its contents?`
+                : `Are you sure you want to delete "${file.name}"?`
+
+            if (!window.confirm(confirmMessage)) {
+                return // User cancelled the deletion
+            }
+        }
+
         try {
+            // For bulk operations, don't manage progress here (it's handled by ContextMenu)
+            if (!skipConfirmation) {
+                // Start deletion progress for single file
+                startDeletion(1)
+                updateDeletionProgress(0, file.name)
+            }
+
             if (isLocal) {
                 await window.electronAPI.deleteLocalFile(file.path)
             } else if (connectionId) {
                 await window.electronAPI.deleteRemoteFile(connectionId, file.path)
             }
-            // Refresh the file list
-            window.location.reload()
+
+            // For single file operations, update progress to complete
+            if (!skipConfirmation) {
+                updateDeletionProgress(1, file.name)
+                // Finish deletion and refresh the file list
+                finishDeletion()
+                refetch()
+            }
         } catch (error) {
             console.error('Failed to delete file:', error)
             alert(`Failed to delete ${file.name}: ${error}`)
+            // Make sure to finish deletion even on error for single file operations
+            if (!skipConfirmation) {
+                finishDeletion()
+            }
+            throw error // Re-throw to let ContextMenu handle it for bulk operations
         }
     }
 

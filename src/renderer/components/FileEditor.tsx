@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FileSystemEntry } from '../types'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
+import DraggableWindow from './DraggableWindow'
 
 interface FileEditorProps {
     file: FileSystemEntry | null
@@ -96,22 +97,15 @@ export default function FileEditor({
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
-                    <div>
-                        <h2 className="text-lg font-semibold">Edit File</h2>
-                        <p className="text-sm text-gray-600">{file.path}</p>
-                    </div>
-                    <button
-                        onClick={handleClose}
-                        className="text-gray-500 hover:text-gray-700"
-                    >
-                        ✕
-                    </button>
-                </div>
-
+        <DraggableWindow
+            title="Edit File"
+            subtitle={file.path}
+            isOpen={isOpen}
+            onClose={handleClose}
+            defaultWidth={900}
+            defaultHeight={700}
+        >
+            <div className="flex flex-col h-full">
                 {/* Error message */}
                 {error && (
                     <div className="p-4 bg-red-50 border-b border-red-200">
@@ -138,7 +132,7 @@ export default function FileEditor({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-4 border-t">
+                <div className="flex items-center justify-between p-4 border-t bg-gray-50">
                     <div className="text-sm text-gray-600">
                         {content !== originalContent && (
                             <span className="text-orange-600">● Unsaved changes</span>
@@ -161,6 +155,6 @@ export default function FileEditor({
                     </div>
                 </div>
             </div>
-        </div>
+        </DraggableWindow>
     )
 }
