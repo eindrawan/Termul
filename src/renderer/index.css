@@ -96,6 +96,10 @@
         @apply cursor-pointer hover:bg-gray-100 select-none;
     }
 
+    .file-explorer-container {
+        @apply select-none;
+    }
+
     /* Enhanced divider styles for better accessibility and visual feedback */
     .divider-handle {
         @apply relative flex items-center justify-center;

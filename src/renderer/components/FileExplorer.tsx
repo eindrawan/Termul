@@ -68,6 +68,10 @@ export default function FileExplorer({
     const [editorFile, setEditorFile] = useState<FileSystemEntry | null>(null)
     const [isEditorOpen, setIsEditorOpen] = useState(false)
 
+    // Breadcrumb edit state
+    const [isEditingPath, setIsEditingPath] = useState(false)
+    const [editingPath, setEditingPath] = useState('')
+
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error, refetch } = useQuery({
         queryKey: [isLocal ? 'local-files' : 'remote-files', connectionId, path, !disabled],
@@ -222,6 +226,9 @@ export default function FileExplorer({
     const [lastClickTime, setLastClickTime] = useState<number>(0)
     const [lastClickedFile, setLastClickedFile] = useState<string | null>(null)
 
+    // Track last selected file for range selection (Shift+click)
+    const [lastSelectedFile, setLastSelectedFile] = useState<FileSystemEntry | null>(null)
+
     const handleFileClick = (file: FileSystemEntry, event: React.MouseEvent) => {
         // Prevent text selection
         event.preventDefault()
@@ -250,9 +257,36 @@ export default function FileExplorer({
             } else {
                 onSelectionChange([...selectedFiles, file])
             }
+            setLastSelectedFile(file)
+        } else if (event.shiftKey && lastSelectedFile) {
+            // Shift+click: select range from last selected file to current file
+            const lastSelectedIndex = sortedFiles.findIndex(f => f.path === lastSelectedFile.path)
+            const currentIndex = sortedFiles.findIndex(f => f.path === file.path)
+
+            if (lastSelectedIndex !== -1 && currentIndex !== -1) {
+                const startIndex = Math.min(lastSelectedIndex, currentIndex)
+                const endIndex = Math.max(lastSelectedIndex, currentIndex)
+                const rangeFiles = sortedFiles.slice(startIndex, endIndex + 1)
+
+                // If Ctrl is also pressed, add to existing selection, otherwise replace
+                if (event.ctrlKey || event.metaKey) {
+                    // Add range to existing selection, avoiding duplicates
+                    const newSelection = [...selectedFiles]
+                    rangeFiles.forEach(rangeFile => {
+                        if (!newSelection.some(f => f.path === rangeFile.path)) {
+                            newSelection.push(rangeFile)
+                        }
+                    })
+                    onSelectionChange(newSelection)
+                } else {
+                    // Replace selection with range
+                    onSelectionChange(rangeFiles)
+                }
+            }
         } else {
             // Normal click: select only this file (clear previous selection)
             onSelectionChange([file])
+            setLastSelectedFile(file)
         }
 
         // Store click info for double-click detection
@@ -343,6 +377,31 @@ export default function FileExplorer({
         }
     }
 
+    const handleBreadcrumbDoubleClick = () => {
+        setEditingPath(path)
+        setIsEditingPath(true)
+    }
+
+    const handlePathEditSubmit = () => {
+        if (editingPath.trim() && editingPath.trim() !== path) {
+            onPathChange(editingPath.trim())
+        }
+        setIsEditingPath(false)
+    }
+
+    const handlePathEditCancel = () => {
+        setIsEditingPath(false)
+        setEditingPath(path)
+    }
+
+    const handlePathEditKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handlePathEditSubmit()
+        } else if (e.key === 'Escape') {
+            handlePathEditCancel()
+        }
+    }
+
     const formatFileSize = (bytes?: number) => {
         if (!bytes) return '-'
         const units = ['B', 'KB', 'MB', 'GB']
@@ -362,10 +421,10 @@ export default function FileExplorer({
 
     const getBreadcrumbs = () => {
         // Handle root directory specially
-        if (path === '/' || (isLocal && (path === 'C:\\' || path === 'C:/'))) {
+        if (path === '/' || (isLocal && (path === 'C:\\' || path === 'C:/' || path === 'C:'))) {
             return [{
                 name: isLocal ? 'C:\\' : '/',
-                path: path,
+                path: isLocal ? 'C:\\' : '/',
                 isLast: true,
             }]
         }
@@ -374,8 +433,9 @@ export default function FileExplorer({
         return parts.map((part, index) => {
             const partialPath = parts.slice(0, index + 1)
             // For remote paths, always include the leading slash
+            // For local paths, if the first part is a drive letter (like C), add the backslash
             const fullPath = isLocal
-                ? partialPath.join('\\')
+                ? (index === 0 && /^[A-Za-z]:$/.test(part) ? part + '\\' : partialPath.join('\\'))
                 : '/' + partialPath.join('/')
 
             return {
@@ -387,7 +447,7 @@ export default function FileExplorer({
     }
 
     return (
-        <div className={`flex flex-col h-full ${disabled ? 'opacity-50' : ''}`}>
+        <div className={`flex flex-col h-full file-explorer-container ${disabled ? 'opacity-50' : ''}`}>
             {/* Header */}
             <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
                 <h3 className="font-medium">{title}</h3>
@@ -396,23 +456,41 @@ export default function FileExplorer({
 
             {/* Breadcrumb Navigation */}
             <div className="flex items-center p-2 bg-white border-b text-sm">
-                {getBreadcrumbs().map((crumb, index) => (
-                    <React.Fragment key={index}>
-                        <button
-                            onClick={() => handleBreadcrumbClick(index)}
-                            disabled={crumb.isLast}
-                            className={`hover:text-primary-600 ${crumb.isLast ? 'font-medium text-gray-900' : 'text-gray-600'
-                                }`}
-                        >
-                            {crumb.name}
-                        </button>
-                        {!crumb.isLast && (
-                            <span className="mx-1 text-gray-400">
-                                {isLocal ? '\\' : '/'}
-                            </span>
-                        )}
-                    </React.Fragment>
-                ))}
+                {isEditingPath ? (
+                    <input
+                        type="text"
+                        value={editingPath}
+                        onChange={(e) => setEditingPath(e.target.value)}
+                        onKeyDown={handlePathEditKeyDown}
+                        onBlur={handlePathEditSubmit}
+                        className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                    />
+                ) : (
+                    <div
+                        className="flex items-center flex-1 cursor-text"
+                        onDoubleClick={handleBreadcrumbDoubleClick}
+                        title="Double-click to edit path"
+                    >
+                        {getBreadcrumbs().map((crumb, index) => (
+                            <React.Fragment key={index}>
+                                <button
+                                    onClick={() => handleBreadcrumbClick(index)}
+                                    disabled={crumb.isLast}
+                                    className={`hover:text-primary-600 ${crumb.isLast ? 'font-medium text-gray-900' : 'text-gray-600'
+                                        }`}
+                                >
+                                    {crumb.name}
+                                </button>
+                                {!crumb.isLast && (
+                                    <span className="mx-1 text-gray-400">
+                                        {isLocal ? '\\' : '/'}
+                                    </span>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* File List */}
