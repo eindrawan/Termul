@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { TabType } from '../types'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useDeletion } from '../contexts/DeletionContext'
+import { useTransfer } from '../contexts/TransferContext'
 import ProfileSidebar from './ProfileSidebar'
 import FileManager from './FileManager'
-import TransferQueue from './TransferQueue'
 import Terminal from './Terminal'
 
 export default function MainLayout() {
@@ -12,6 +12,7 @@ export default function MainLayout() {
     const [localPath, setLocalPath] = useState('C:\\')
     const { state: connectionState, dispatch } = useConnection()
     const { deletionProgress } = useDeletion()
+    const { state: transferState } = useTransfer()
 
     // Get current connection
     const currentConnection = connectionState.currentConnectionId
@@ -53,7 +54,6 @@ export default function MainLayout() {
 
     const tabs: { id: TabType; label: string; icon: string }[] = [
         { id: 'file-manager', label: 'File Manager', icon: '📁' },
-        { id: 'transfer-queue', label: 'Transfers', icon: '📤' },
         { id: 'terminal', label: 'Terminal', icon: '💻' },
     ]
 
@@ -106,9 +106,6 @@ export default function MainLayout() {
                         )}
                     </div>
 
-                    <div className={`h-full ${activeTab === 'transfer-queue' ? 'block' : 'hidden'}`}>
-                        <TransferQueue />
-                    </div>
 
                     {/* Render Terminal for each connection, show/hide based on active connection */}
                     <div className={`h-full ${activeTab === 'terminal' ? 'block' : 'hidden'}`}>
@@ -164,6 +161,13 @@ export default function MainLayout() {
                             <span className="text-yellow-300">
                                 Deleting: {deletionProgress.current}/{deletionProgress.total}
                                 {deletionProgress.currentFile && ` - ${deletionProgress.currentFile}`}
+                            </span>
+                        ) : transferState.transferProgress.isActive ? (
+                            <span className="text-blue-300">
+                                Transferring: {transferState.transferProgress.activeCount} active
+                                {transferState.transferProgress.currentFile && (
+                                    <> - {transferState.transferProgress.currentFile} ({transferState.transferProgress.overallProgress.toFixed(1)}%)</>
+                                )}
                             </span>
                         ) : (
                             <span>Termul SSH Client v0.1.0</span>

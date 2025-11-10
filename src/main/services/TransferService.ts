@@ -214,12 +214,12 @@ export class TransferService {
             break
             
           case 'complete':
-            this.db.updateTransfer(transfer.id, { 
-              status: 'completed', 
+            this.db.updateTransfer(transfer.id, {
+              status: 'completed',
               progress: 100,
-              completedAt: Math.floor(Date.now() / 1000) 
+              completedAt: Math.floor(Date.now() / 1000)
             })
-            this.emitTransferComplete(transfer.id)
+            this.emitTransferComplete(transfer.id, transfer.sourcePath, transfer.destinationPath, transfer.direction)
             this.cleanupTransfer(transfer.id)
             break
             
@@ -299,11 +299,14 @@ export class TransferService {
     }
   }
 
-  private emitTransferComplete(transferId: string): void {
+  private emitTransferComplete(transferId: string, sourcePath: string, destinationPath: string, direction: 'upload' | 'download'): void {
     if ((global as any).mainWindow) {
       (global as any).mainWindow.webContents.send('transfer-complete', {
         id: transferId,
-        status: 'completed'
+        status: 'completed',
+        sourcePath,
+        destinationPath,
+        direction
       })
     }
     

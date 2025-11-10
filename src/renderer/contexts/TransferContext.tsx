@@ -3,10 +3,19 @@ import { TransferItem, TransferDescriptor } from '../types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
+interface TransferProgress {
+    isActive: boolean
+    activeCount: number
+    totalCount: number
+    currentFile?: string
+    overallProgress: number
+}
+
 interface TransferState {
     queue: TransferItem[]
     activeTransfers: TransferItem[]
     completedTransfers: TransferItem[]
+    transferProgress: TransferProgress
 }
 
 type TransferAction =
@@ -19,36 +28,105 @@ const initialState: TransferState = {
     queue: [],
     activeTransfers: [],
     completedTransfers: [],
+    transferProgress: {
+        isActive: false,
+        activeCount: 0,
+        totalCount: 0,
+        overallProgress: 0
+    }
 }
 
 function transferReducer(state: TransferState, action: TransferAction): TransferState {
     switch (action.type) {
         case 'SET_QUEUE':
+            const activeTransfers = action.payload.filter(t => t.status === 'active' || t.status === 'pending')
+            const completedTransfers = action.payload.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled')
+
+            // Calculate transfer progress
+            const isActive = activeTransfers.length > 0
+            const overallProgress = action.payload.length > 0
+                ? action.payload.reduce((sum, t) => sum + t.progress, 0) / action.payload.length
+                : 0
+            const currentFile = activeTransfers.length > 0 ? activeTransfers[0].sourcePath.split(/[/\\]/).pop() : undefined
+
             return {
                 ...state,
                 queue: action.payload,
-                activeTransfers: action.payload.filter(t => t.status === 'active' || t.status === 'pending'),
-                completedTransfers: action.payload.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled'),
+                activeTransfers,
+                completedTransfers,
+                transferProgress: {
+                    isActive,
+                    activeCount: activeTransfers.length,
+                    totalCount: action.payload.length,
+                    currentFile,
+                    overallProgress
+                }
             }
         case 'UPDATE_TRANSFER':
+            const updatedQueue = state.queue.map(t => t.id === action.payload.id ? action.payload : t)
+            const updatedActiveTransfers = updatedQueue.filter(t => t.status === 'active' || t.status === 'pending')
+            const updatedCompletedTransfers = updatedQueue.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled')
+
+            // Recalculate transfer progress
+            const isUpdatedActive = updatedActiveTransfers.length > 0
+            const updatedOverallProgress = updatedQueue.length > 0
+                ? updatedQueue.reduce((sum, t) => sum + t.progress, 0) / updatedQueue.length
+                : 0
+            const updatedCurrentFile = updatedActiveTransfers.length > 0 ? updatedActiveTransfers[0].sourcePath.split(/[/\\]/).pop() : undefined
+
             return {
                 ...state,
-                queue: state.queue.map(t => t.id === action.payload.id ? action.payload : t),
-                activeTransfers: state.activeTransfers.map(t => t.id === action.payload.id ? action.payload : t),
-                completedTransfers: state.completedTransfers.map(t => t.id === action.payload.id ? action.payload : t),
+                queue: updatedQueue,
+                activeTransfers: updatedActiveTransfers,
+                completedTransfers: updatedCompletedTransfers,
+                transferProgress: {
+                    isActive: isUpdatedActive,
+                    activeCount: updatedActiveTransfers.length,
+                    totalCount: updatedQueue.length,
+                    currentFile: updatedCurrentFile,
+                    overallProgress: updatedOverallProgress
+                }
             }
         case 'ADD_TRANSFER':
+            const newQueue = [...state.queue, action.payload]
+            const newActiveTransfers = [...state.activeTransfers, action.payload]
+
             return {
                 ...state,
-                queue: [...state.queue, action.payload],
-                activeTransfers: [...state.activeTransfers, action.payload],
+                queue: newQueue,
+                activeTransfers: newActiveTransfers,
+                transferProgress: {
+                    isActive: true,
+                    activeCount: newActiveTransfers.length,
+                    totalCount: newQueue.length,
+                    currentFile: action.payload.sourcePath.split(/[/\\]/).pop(),
+                    overallProgress: newQueue.reduce((sum, t) => sum + t.progress, 0) / newQueue.length
+                }
             }
         case 'REMOVE_TRANSFER':
+            const filteredQueue = state.queue.filter(t => t.id !== action.payload)
+            const filteredActiveTransfers = filteredQueue.filter(t => t.status === 'active' || t.status === 'pending')
+            const filteredCompletedTransfers = filteredQueue.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled')
+
+            // Recalculate transfer progress
+            const isFilteredActive = filteredActiveTransfers.length > 0
+            const filteredOverallProgress = filteredQueue.length > 0
+                ? filteredQueue.reduce((sum, t) => sum + t.progress, 0) / filteredQueue.length
+                : 0
+            const filteredCurrentFile = filteredActiveTransfers.length > 0 ? filteredActiveTransfers[0].sourcePath.split(/[/\\]/).pop() : undefined
+
             return {
                 ...state,
-                queue: state.queue.filter(t => t.id !== action.payload),
-                activeTransfers: state.activeTransfers.filter(t => t.id !== action.payload),
-                completedTransfers: state.completedTransfers.filter(t => t.id !== action.payload),
+                queue: filteredQueue,
+                activeTransfers: filteredActiveTransfers,
+                completedTransfers: filteredCompletedTransfers,
+                transferProgress: {
+                    isActive: isFilteredActive,
+                    activeCount: filteredActiveTransfers.length,
+                    totalCount: filteredQueue.length,
+                    currentFile: filteredCurrentFile,
+                    overallProgress: filteredOverallProgress
+                }
             }
         default:
             return state
@@ -122,6 +200,18 @@ export function TransferProvider({ children }: { children: React.ReactNode }) {
         const handleComplete = (result: any) => {
             dispatch({ type: 'UPDATE_TRANSFER', payload: result })
             refetchQueue()
+
+            // Emit custom event for file explorer refresh
+            if (result.sourcePath && result.destinationPath && result.direction) {
+                const refreshEvent = new CustomEvent('transfer-complete-for-refresh', {
+                    detail: {
+                        sourcePath: result.sourcePath,
+                        destinationPath: result.destinationPath,
+                        direction: result.direction
+                    }
+                })
+                window.dispatchEvent(refreshEvent)
+            }
         }
 
         window.electronAPI.onTransferProgress(handleProgress)

@@ -112,6 +112,52 @@ export default function FileExplorer({
         }
     }, [fetchedFiles])
 
+    // Listen for transfer completion events to refresh file list
+    useEffect(() => {
+        const handleTransferComplete = (event: CustomEvent) => {
+            const { sourcePath, destinationPath, direction } = event.detail
+
+            // Extract directory paths from the file paths
+            const getSourceDir = (filePath: string) => {
+                const parts = filePath.split(/[/\\]/)
+                return parts.slice(0, -1).join(isLocal ? '\\' : '/')
+            }
+
+            const getDestinationDir = (filePath: string) => {
+                const parts = filePath.split(/[/\\]/)
+                return parts.slice(0, -1).join(isLocal ? '\\' : '/')
+            }
+
+            // Check if the transfer affects the current directory
+            let shouldRefresh = false
+
+            if (direction === 'upload') {
+                // For upload, refresh the remote destination directory
+                const destDir = getDestinationDir(destinationPath)
+                shouldRefresh = !isLocal && destDir === path
+            } else if (direction === 'download') {
+                // For download, refresh the local destination directory
+                const destDir = getDestinationDir(destinationPath)
+                shouldRefresh = isLocal && destDir === path
+            }
+
+            if (shouldRefresh) {
+                // Add a small delay to ensure the file is fully written
+                setTimeout(() => {
+                    refetch()
+                }, 500)
+            }
+        }
+
+        // Add event listener
+        window.addEventListener('transfer-complete-for-refresh', handleTransferComplete as EventListener)
+
+        // Clean up
+        return () => {
+            window.removeEventListener('transfer-complete-for-refresh', handleTransferComplete as EventListener)
+        }
+    }, [path, isLocal, refetch])
+
     // Sort files based on current sort field and direction
     const sortedFiles = useMemo(() => {
         const sorted = [...files].sort((a, b) => {

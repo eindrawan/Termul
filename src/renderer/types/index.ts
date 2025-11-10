@@ -70,7 +70,7 @@ export interface TerminalSession {
   cols: number
 }
 
-export type TabType = 'file-manager' | 'transfer-queue' | 'terminal'
+export type TabType = 'file-manager' | 'terminal'
 
 export interface AppState {
   activeTab: TabType
