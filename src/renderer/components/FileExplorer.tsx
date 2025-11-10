@@ -7,6 +7,7 @@ import FileEditor from './FileEditor'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
+import NameInputDialog from './NameInputDialog'
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
 type SortDirection = 'asc' | 'desc'
@@ -86,6 +87,16 @@ export default function FileExplorer({
         message: string
         variant: 'success' | 'error' | 'warning' | 'info'
     }>({ isOpen: false, message: '', variant: 'info' })
+
+    // Name input dialog state
+    const [nameInputDialog, setNameInputDialog] = useState<{
+        isOpen: boolean
+        title: string
+        initialValue: string
+        placeholder: string
+        onConfirm: (name: string) => void
+        validate?: (name: string) => string | null
+    }>({ isOpen: false, title: '', initialValue: '', placeholder: '', onConfirm: () => { } })
 
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error, refetch } = useQuery({
@@ -355,13 +366,15 @@ export default function FileExplorer({
         setLastClickedFile(file.path)
     }
 
-    const handleContextMenu = (file: FileSystemEntry, event: React.MouseEvent) => {
+    const handleContextMenu = (file: FileSystemEntry | null, event: React.MouseEvent) => {
         event.preventDefault()
         event.stopPropagation()
 
-        // Select the file if it's not already selected
-        if (!selectedFiles.some(f => f.path === file.path)) {
-            onSelectionChange([file])
+        if (file) {
+            // Select the file if it's not already selected
+            if (!selectedFiles.some(f => f.path === file.path)) {
+                onSelectionChange([file])
+            }
         }
 
         setContextMenu({
@@ -476,6 +489,156 @@ export default function FileExplorer({
         } else if (e.key === 'Escape') {
             handlePathEditCancel()
         }
+    }
+
+    const handleCreateFolder = () => {
+        setNameInputDialog({
+            isOpen: true,
+            title: 'New Folder',
+            initialValue: 'New Folder',
+            placeholder: 'Folder name',
+            validate: (name) => {
+                // Check for invalid characters
+                if (/[<>:"/\\|?*]/.test(name)) {
+                    return 'Folder name contains invalid characters'
+                }
+
+                // Check if name already exists in current directory
+                if (files.some(file => file.name === name)) {
+                    return 'A folder with this name already exists'
+                }
+
+                return null
+            },
+            onConfirm: async (name) => {
+                try {
+                    const folderPath = isLocal
+                        ? `${path.replace(/\/$/, '')}\\${name}`
+                        : `${path.replace(/\/$/, '')}/${name}`
+
+                    if (isLocal) {
+                        await window.electronAPI.createLocalDirectory(folderPath)
+                    } else if (connectionId) {
+                        await window.electronAPI.createRemoteDirectory(connectionId, folderPath)
+                    }
+
+                    // Refresh file list
+                    refetch()
+
+                    // Close the dialog after successful creation
+                    setNameInputDialog({ ...nameInputDialog, isOpen: false })
+                } catch (error) {
+                    setAlertDialog({
+                        isOpen: true,
+                        message: `Failed to create folder: ${error}`,
+                        variant: 'error'
+                    })
+                }
+            }
+        })
+        handleContextMenuClose()
+    }
+
+    const handleCreateFile = () => {
+        setNameInputDialog({
+            isOpen: true,
+            title: 'New File',
+            initialValue: 'New File.txt',
+            placeholder: 'File name',
+            validate: (name) => {
+                // Check for invalid characters
+                if (/[<>:"/\\|?*]/.test(name)) {
+                    return 'File name contains invalid characters'
+                }
+
+                // Check if name already exists in current directory
+                if (files.some(file => file.name === name)) {
+                    return 'A file with this name already exists'
+                }
+
+                return null
+            },
+            onConfirm: async (name) => {
+                try {
+                    const filePath = isLocal
+                        ? `${path.replace(/\/$/, '')}\\${name}`
+                        : `${path.replace(/\/$/, '')}/${name}`
+
+                    if (isLocal) {
+                        await window.electronAPI.createLocalFile(filePath, '')
+                    } else if (connectionId) {
+                        await window.electronAPI.createRemoteFile(connectionId, filePath, '')
+                    }
+
+                    // Refresh file list
+                    refetch()
+
+                    // Close the dialog after successful creation
+                    setNameInputDialog({ ...nameInputDialog, isOpen: false })
+                } catch (error) {
+                    setAlertDialog({
+                        isOpen: true,
+                        message: `Failed to create file: ${error}`,
+                        variant: 'error'
+                    })
+                }
+            }
+        })
+        handleContextMenuClose()
+    }
+
+    const handleRename = (file: FileSystemEntry) => {
+        setNameInputDialog({
+            isOpen: true,
+            title: `Rename ${file.type === 'directory' ? 'Folder' : 'File'}`,
+            initialValue: file.name,
+            placeholder: 'New name',
+            validate: (name) => {
+                // Check for invalid characters
+                if (/[<>:"/\\|?*]/.test(name)) {
+                    return 'Name contains invalid characters'
+                }
+
+                // Check if name is the same as current
+                if (name === file.name) {
+                    return 'New name is the same as the current name'
+                }
+
+                // Check if name already exists in current directory
+                if (files.some(f => f.name === name && f.path !== file.path)) {
+                    return `A ${file.type} with this name already exists`
+                }
+
+                return null
+            },
+            onConfirm: async (newName) => {
+                try {
+                    const oldPath = file.path
+                    const newPath = isLocal
+                        ? `${path.replace(/\/$/, '')}\\${newName}`
+                        : `${path.replace(/\/$/, '')}/${newName}`
+
+                    if (isLocal) {
+                        await window.electronAPI.renameLocalFile(oldPath, newPath)
+                    } else if (connectionId) {
+                        await window.electronAPI.renameRemoteFile(connectionId, oldPath, newPath)
+                    }
+
+                    // Refresh file list
+                    refetch()
+
+                    // Close the dialog after successful rename
+                    setNameInputDialog({ ...nameInputDialog, isOpen: false })
+                } catch (error) {
+                    setAlertDialog({
+                        isOpen: true,
+                        message: `Failed to rename: ${error}`,
+                        variant: 'error'
+                    })
+                }
+            }
+        })
+        handleContextMenuClose()
     }
 
     const formatFileSize = (bytes?: number) => {
@@ -600,7 +763,19 @@ export default function FileExplorer({
                     )}
 
                     {!isLoading && !error && (
-                        <div className="w-full overflow-hidden">
+                        <div
+                            className="w-full overflow-hidden"
+                            onContextMenu={(e) => {
+                                // Handle context menu on empty space in the file list area
+                                const target = e.target as HTMLElement
+                                const isFileRow = target.closest('tr[data-file-row]')
+                                if (!isFileRow) {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleContextMenu(null, e)
+                                }
+                            }}
+                        >
                             <table
                                 id="file-explorer-table"
                                 className="file-table w-full"
@@ -650,7 +825,18 @@ export default function FileExplorer({
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody
+                                    onContextMenu={(e) => {
+                                        // Check if the click is on empty space (not on a file row)
+                                        const target = e.target as HTMLElement
+                                        const row = target.closest('tr')
+                                        if (!row || row.querySelector('td[colspan]')) {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            handleContextMenu(null, e)
+                                        }
+                                    }}
+                                >
                                     {sortedFiles.length === 0 ? (
                                         <tr>
                                             <td colSpan={4} className="text-center py-4 text-gray-500">
@@ -661,6 +847,7 @@ export default function FileExplorer({
                                         sortedFiles.map((file) => (
                                             <tr
                                                 key={file.path}
+                                                data-file-row="true"
                                                 onClick={(e) => handleFileClick(file, e)}
                                                 onContextMenu={(e) => handleContextMenu(file, e)}
                                                 className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
@@ -705,6 +892,9 @@ export default function FileExplorer({
                         onDelete={handleDelete}
                         onEdit={handleEdit}
                         selectedFiles={selectedFiles}
+                        onCreateFolder={handleCreateFolder}
+                        onCreateFile={handleCreateFile}
+                        onRename={handleRename}
                     />
                 )}
 
@@ -715,6 +905,17 @@ export default function FileExplorer({
                     onClose={handleEditorClose}
                     connectionId={connectionId}
                     isLocal={isLocal}
+                />
+
+                {/* Name Input Dialog */}
+                <NameInputDialog
+                    isOpen={nameInputDialog.isOpen}
+                    title={nameInputDialog.title}
+                    initialValue={nameInputDialog.initialValue}
+                    placeholder={nameInputDialog.placeholder}
+                    validate={nameInputDialog.validate}
+                    onConfirm={nameInputDialog.onConfirm}
+                    onCancel={() => setNameInputDialog({ ...nameInputDialog, isOpen: false })}
                 />
             </div>
         </>

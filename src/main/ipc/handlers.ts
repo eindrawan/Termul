@@ -264,6 +264,62 @@ export function setupIpcHandlers() {
     }
   })
 
+  // File creation handlers
+  ipcMain.handle('create-local-directory', async (_, path: string) => {
+    try {
+      return await fileService.createLocalDirectory(path)
+    } catch (error) {
+      console.error('Create local directory error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('create-remote-directory', async (_, connectionId: string, path: string) => {
+    try {
+      return await fileService.createRemoteDirectory(connectionId, path)
+    } catch (error) {
+      console.error('Create remote directory error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('create-local-file', async (_, path: string, content: string = '') => {
+    try {
+      return await fileService.createLocalFile(path, content)
+    } catch (error) {
+      console.error('Create local file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('create-remote-file', async (_, connectionId: string, path: string, content: string = '') => {
+    try {
+      return await fileService.createRemoteFile(connectionId, path, content)
+    } catch (error) {
+      console.error('Create remote file error:', error)
+      throw error
+    }
+  })
+
+  // File rename handlers
+  ipcMain.handle('rename-local-file', async (_, oldPath: string, newPath: string) => {
+    try {
+      return await fileService.renameLocalFile(oldPath, newPath)
+    } catch (error) {
+      console.error('Rename local file error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('rename-remote-file', async (_, connectionId: string, oldPath: string, newPath: string) => {
+    try {
+      return await fileService.renameRemoteFile(connectionId, oldPath, newPath)
+    } catch (error) {
+      console.error('Rename remote file error:', error)
+      throw error
+    }
+  })
+
   // Transfer handlers
   ipcMain.handle('enqueue-transfers', async (_, transfers) => {
     try {

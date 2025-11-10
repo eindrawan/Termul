@@ -505,4 +505,90 @@ export class FileService {
       await sftp.end()
     }
   }
+
+  async createLocalFile(path: string, content: string = ''): Promise<void> {
+    try {
+      await fs.writeFile(path, content, 'utf-8')
+    } catch (error) {
+      console.error(`Failed to create local file ${path}:`, error)
+      throw error
+    }
+  }
+
+  async createRemoteFile(connectionId: string, path: string, content: string = ''): Promise<void> {
+    const ssh = this.connectionService.getSshClient(connectionId)
+    if (!ssh) {
+      throw new Error('Not connected to remote host')
+    }
+
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
+    if (!connectionConfig) {
+      throw new Error('Connection configuration not available')
+    }
+
+    const sftp = new SFTPClient()
+    
+    try {
+      await sftp.connect({
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        username: connectionConfig.username,
+        password: connectionConfig.password,
+        privateKey: connectionConfig.privateKey,
+        passphrase: connectionConfig.passphrase,
+        readyTimeout: 30000
+      })
+      
+      // Create a temporary buffer from the content
+      const buffer = Buffer.from(content, 'utf-8')
+      await sftp.put(buffer, path)
+    } catch (error) {
+      console.error(`Failed to create remote file ${path}:`, error)
+      throw error
+    } finally {
+      await sftp.end()
+    }
+  }
+
+  async renameLocalFile(oldPath: string, newPath: string): Promise<void> {
+    try {
+      await fs.rename(oldPath, newPath)
+    } catch (error) {
+      console.error(`Failed to rename local file ${oldPath} to ${newPath}:`, error)
+      throw error
+    }
+  }
+
+  async renameRemoteFile(connectionId: string, oldPath: string, newPath: string): Promise<void> {
+    const ssh = this.connectionService.getSshClient(connectionId)
+    if (!ssh) {
+      throw new Error('Not connected to remote host')
+    }
+
+    const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
+    if (!connectionConfig) {
+      throw new Error('Connection configuration not available')
+    }
+
+    const sftp = new SFTPClient()
+    
+    try {
+      await sftp.connect({
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        username: connectionConfig.username,
+        password: connectionConfig.password,
+        privateKey: connectionConfig.privateKey,
+        passphrase: connectionConfig.passphrase,
+        readyTimeout: 30000
+      })
+      
+      await sftp.rename(oldPath, newPath)
+    } catch (error) {
+      console.error(`Failed to rename remote file ${oldPath} to ${newPath}:`, error)
+      throw error
+    } finally {
+      await sftp.end()
+    }
+  }
 }

@@ -33,6 +33,16 @@ export interface ElectronAPI {
   readRemoteFile: (connectionId: string, path: string) => Promise<string>
   writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
   
+  // File creation operations
+  createLocalDirectory: (path: string) => Promise<any>
+  createRemoteDirectory: (connectionId: string, path: string) => Promise<any>
+  createLocalFile: (path: string, content?: string) => Promise<any>
+  createRemoteFile: (connectionId: string, path: string, content?: string) => Promise<any>
+  
+  // File rename operations
+  renameLocalFile: (oldPath: string, newPath: string) => Promise<any>
+  renameRemoteFile: (connectionId: string, oldPath: string, newPath: string) => Promise<any>
+  
   // Transfer operations
   enqueueTransfers: (transfers: any[]) => Promise<any>
   getTransferQueue: () => Promise<any>

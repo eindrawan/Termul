@@ -17,6 +17,9 @@ interface ContextMenuProps {
     onDelete: (file: FileSystemEntry, skipConfirmation?: boolean) => void
     onEdit: (file: FileSystemEntry) => void
     selectedFiles: FileSystemEntry[]
+    onCreateFolder: () => void
+    onCreateFile: () => void
+    onRename: (file: FileSystemEntry) => void
 }
 
 export default function ContextMenu({
@@ -30,7 +33,10 @@ export default function ContextMenu({
     onDownload,
     onDelete,
     onEdit,
-    selectedFiles
+    selectedFiles,
+    onCreateFolder,
+    onCreateFile,
+    onRename
 }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
     const { startDeletion, updateDeletionProgress, finishDeletion } = useDeletion()
@@ -318,6 +324,16 @@ export default function ContextMenu({
                             </button>
                         )}
                         <button
+                            onClick={() => {
+                                onRename(file)
+                                onClose()
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                            <span className="mr-2">✏️</span>
+                            Rename
+                        </button>
+                        <button
                             onClick={handleDelete}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
                         >
@@ -326,9 +342,28 @@ export default function ContextMenu({
                         </button>
                     </>
                 ) : (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                        No file selected
-                    </div>
+                    <>
+                        <button
+                            onClick={() => {
+                                onCreateFolder()
+                                onClose()
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                            <span className="mr-2">📁</span>
+                            New Folder
+                        </button>
+                        <button
+                            onClick={() => {
+                                onCreateFile()
+                                onClose()
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                            <span className="mr-2">📄</span>
+                            New File
+                        </button>
+                    </>
                 )}
             </div>
         </>

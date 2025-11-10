@@ -107,6 +107,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeRemoteFile: (connectionId: string, path: string, content: string) =>
     ipcRenderer.invoke('write-remote-file', connectionId, path, content),
   
+  // File creation operations
+  createLocalDirectory: (path: string) =>
+    ipcRenderer.invoke('create-local-directory', path),
+  
+  createRemoteDirectory: (connectionId: string, path: string) =>
+    ipcRenderer.invoke('create-remote-directory', connectionId, path),
+  
+  createLocalFile: (path: string, content?: string) =>
+    ipcRenderer.invoke('create-local-file', path, content),
+  
+  createRemoteFile: (connectionId: string, path: string, content?: string) =>
+    ipcRenderer.invoke('create-remote-file', connectionId, path, content),
+  
+  // File rename operations
+  renameLocalFile: (oldPath: string, newPath: string) =>
+    ipcRenderer.invoke('rename-local-file', oldPath, newPath),
+  
+  renameRemoteFile: (connectionId: string, oldPath: string, newPath: string) =>
+    ipcRenderer.invoke('rename-remote-file', connectionId, oldPath, newPath),
+  
   // Transfer operations
   enqueueTransfers: (transfers: z.infer<typeof TransferDescriptorSchema>[]) =>
     ipcRenderer.invoke('enqueue-transfers', transfers),
@@ -206,6 +226,12 @@ declare global {
       writeLocalFile: (path: string, content: string) => Promise<any>
       readRemoteFile: (connectionId: string, path: string) => Promise<string>
       writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
+      createLocalDirectory: (path: string) => Promise<any>
+      createRemoteDirectory: (connectionId: string, path: string) => Promise<any>
+      createLocalFile: (path: string, content?: string) => Promise<any>
+      createRemoteFile: (connectionId: string, path: string, content?: string) => Promise<any>
+      renameLocalFile: (oldPath: string, newPath: string) => Promise<any>
+      renameRemoteFile: (connectionId: string, oldPath: string, newPath: string) => Promise<any>
       enqueueTransfers: (transfers: any[]) => Promise<any>
       getTransferQueue: () => Promise<any>
       pauseTransfer: (id: string) => Promise<any>
