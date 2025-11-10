@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { ConnectionProfile } from '../types'
 import ManageProfilesDialog from './ManageProfilesDialog'
-import { PlusIcon, ServerIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ServerIcon, PencilIcon } from '@heroicons/react/24/outline'
 
 export default function ProfileSidebar() {
     const [showProfileDialog, setShowProfileDialog] = useState(false)
@@ -37,6 +37,12 @@ export default function ProfileSidebar() {
 
     const handleCreateProfile = () => {
         setEditingProfile(null)
+        setShowProfileDialog(true)
+    }
+
+    const handleEditProfile = (profile: ConnectionProfile, event: React.MouseEvent) => {
+        event.stopPropagation()
+        setEditingProfile(profile)
         setShowProfileDialog(true)
     }
 
@@ -114,11 +120,20 @@ export default function ProfileSidebar() {
                                                         Port: {profile.port} • {profile.authType === 'password' ? 'Password' : 'SSH Key'}
                                                     </div>
                                                 </div>
-                                                {isProfileConnecting(profile) && (
-                                                    <div className="ml-2 flex-shrink-0">
-                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                                    </div>
-                                                )}
+                                                <div className="flex items-center space-x-1">
+                                                    <button
+                                                        onClick={(e) => handleEditProfile(profile, e)}
+                                                        className="p-1 rounded hover:bg-gray-600 transition-colors"
+                                                        title="Edit Profile"
+                                                    >
+                                                        <PencilIcon className="h-4 w-4 text-gray-300 hover:text-white" />
+                                                    </button>
+                                                    {isProfileConnecting(profile) && (
+                                                        <div className="ml-2 flex-shrink-0">
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                             {isProfileConnected(profile) && (
                                                 <div className="mt-2 text-xs flex items-center justify-between">
@@ -160,6 +175,7 @@ export default function ProfileSidebar() {
                         setShowProfileDialog(false)
                         setEditingProfile(null)
                     }}
+                    editingProfile={editingProfile}
                 />
             )}
         </>
