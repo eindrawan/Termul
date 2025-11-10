@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { FileSystemEntry } from '../types'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import DraggableWindow from './DraggableWindow'
+import ConfirmDialog from './ConfirmDialog'
 
 interface FileEditorProps {
     file: FileSystemEntry | null
@@ -23,6 +24,7 @@ export default function FileEditor({
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
     // Load file content when editor opens
     useEffect(() => {
@@ -84,12 +86,15 @@ export default function FileEditor({
 
     const handleClose = () => {
         if (content !== originalContent) {
-            if (confirm('You have unsaved changes. Are you sure you want to close?')) {
-                onClose()
-            }
+            setShowCloseConfirm(true)
         } else {
             onClose()
         }
+    }
+
+    const confirmClose = () => {
+        setShowCloseConfirm(false)
+        onClose()
     }
 
     if (!isOpen || !file) {
@@ -97,64 +102,77 @@ export default function FileEditor({
     }
 
     return (
-        <DraggableWindow
-            title="Edit File"
-            subtitle={file.path}
-            isOpen={isOpen}
-            onClose={handleClose}
-            defaultWidth={900}
-            defaultHeight={700}
-        >
-            <div className="flex flex-col h-full">
-                {/* Error message */}
-                {error && (
-                    <div className="p-4 bg-red-50 border-b border-red-200">
-                        <p className="text-red-600">{error}</p>
-                    </div>
-                )}
+        <>
+            <ConfirmDialog
+                isOpen={showCloseConfirm}
+                title="Unsaved Changes"
+                message="You have unsaved changes. Are you sure you want to close?"
+                confirmText="Close"
+                cancelText="Cancel"
+                onConfirm={confirmClose}
+                onCancel={() => setShowCloseConfirm(false)}
+                variant="warning"
+            />
 
-                {/* Content */}
-                <div className="flex-1 p-4 overflow-hidden">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                            <span className="ml-2">Loading file...</span>
+            <DraggableWindow
+                title="Edit File"
+                subtitle={file.path}
+                isOpen={isOpen}
+                onClose={handleClose}
+                defaultWidth={900}
+                defaultHeight={700}
+            >
+                <div className="flex flex-col h-full">
+                    {/* Error message */}
+                    {error && (
+                        <div className="p-4 bg-red-50 border-b border-red-200">
+                            <p className="text-red-600">{error}</p>
                         </div>
-                    ) : (
-                        <textarea
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
-                            className="w-full h-full p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            placeholder="File content will appear here..."
-                            spellCheck={false}
-                        />
                     )}
-                </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                    <div className="text-sm text-gray-600">
-                        {content !== originalContent && (
-                            <span className="text-orange-600">● Unsaved changes</span>
+                    {/* Content */}
+                    <div className="flex-1 p-4 overflow-hidden">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                                <span className="ml-2">Loading file...</span>
+                            </div>
+                        ) : (
+                            <textarea
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                className="w-full h-full p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                placeholder="File content will appear here..."
+                                spellCheck={false}
+                            />
                         )}
                     </div>
-                    <div className="flex space-x-2">
-                        <button
-                            onClick={handleClose}
-                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isLoading || isSaving || content === originalContent}
-                            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSaving ? 'Saving...' : 'Save'}
-                        </button>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+                        <div className="text-sm text-gray-600">
+                            {content !== originalContent && (
+                                <span className="text-orange-600">● Unsaved changes</span>
+                            )}
+                        </div>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleClose}
+                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isLoading || isSaving || content === originalContent}
+                                className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </DraggableWindow>
+            </DraggableWindow>
+        </>
     )
 }

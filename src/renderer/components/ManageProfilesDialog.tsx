@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { ConnectionProfile } from '../types'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import ConfirmDialog from './ConfirmDialog'
+import AlertDialog from './AlertDialog'
+import PromptDialog from './PromptDialog'
 
 interface ManageProfilesDialogProps {
     isOpen: boolean
@@ -45,6 +48,22 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
     const [testLoading, setTestLoading] = useState<string | null>(null)
     const [errors, setErrors] = useState<ProfileFormErrors>({})
     const [showPassword, setShowPassword] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [profileToDelete, setProfileToDelete] = useState<string | null>(null)
+
+    // Alert dialog state
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean
+        message: string
+        variant: 'success' | 'error' | 'warning' | 'info'
+    }>({ isOpen: false, message: '', variant: 'info' })
+
+    // Prompt dialog state
+    const [promptDialog, setPromptDialog] = useState<{
+        isOpen: boolean
+        message: string
+        onConfirm: (value: string) => void
+    }>({ isOpen: false, message: '', onConfirm: () => { } })
 
     useEffect(() => {
         if (isOpen) {
@@ -108,7 +127,11 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                 }, formData.passwordId);
             } catch (error) {
                 console.error('Failed to store password:', error);
-                alert('Failed to store password securely: ' + (error as Error).message);
+                setAlertDialog({
+                    isOpen: true,
+                    message: 'Failed to store password securely: ' + (error as Error).message,
+                    variant: 'error'
+                });
                 return;
             }
         } else if (editingProfile && editingProfile.passwordId && formData.authType === 'password') {
@@ -166,25 +189,50 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
         try {
             const success = await window.electronAPI.testConnection(profile)
             if (success) {
-                alert('Connection test successful!')
+                setAlertDialog({
+                    isOpen: true,
+                    message: 'Connection test successful!',
+                    variant: 'success'
+                })
             } else {
-                alert('Connection test failed: Unable to connect to the server with the provided credentials.')
+                setAlertDialog({
+                    isOpen: true,
+                    message: 'Connection test failed: Unable to connect to the server with the provided credentials.',
+                    variant: 'error'
+                })
             }
         } catch (error) {
-            alert('Connection test failed: ' + (error as Error).message)
+            setAlertDialog({
+                isOpen: true,
+                message: 'Connection test failed: ' + (error as Error).message,
+                variant: 'error'
+            })
         } finally {
             setTestLoading(null)
         }
     }
 
     const handleDelete = (profileId: string) => {
-        if (window.confirm('Are you sure you want to delete this profile?')) {
-            deleteProfileMutation.mutate(profileId)
+        setProfileToDelete(profileId)
+        setShowDeleteConfirm(true)
+    }
+
+    const confirmDelete = () => {
+        if (profileToDelete) {
+            deleteProfileMutation.mutate(profileToDelete)
+            setShowDeleteConfirm(false)
+            setProfileToDelete(null)
             onClose()
         }
     }
 
+    const cancelDelete = () => {
+        setShowDeleteConfirm(false)
+        setProfileToDelete(null)
+    }
+
     const handleCancel = () => {
+        // Reset all form states to initial values to ensure inputs remain functional
         setFormData(initialFormData)
         setEditingProfile(null)
         setErrors({})
@@ -195,197 +243,235 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                {/* Profile Form */}
-                <h2 className="text-lg font-semibold mb-4">
-                    {editingProfile ? 'Edit Profile' : 'Add New Profile'}
-                </h2>
+        <>
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                title="Delete Profile"
+                message="Are you sure you want to delete this profile? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+                variant="danger"
+            />
 
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Profile Name *</label>
-                        <input
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className={`w-full p-2 border rounded ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-                            placeholder="My Server"
-                        />
-                        {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
-                    </div>
+            <AlertDialog
+                isOpen={alertDialog.isOpen}
+                message={alertDialog.message}
+                variant={alertDialog.variant}
+                onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+            />
 
-                    <div className="grid grid-cols-2 gap-4">
+            <PromptDialog
+                isOpen={promptDialog.isOpen}
+                message={promptDialog.message}
+                inputType="password"
+                onConfirm={promptDialog.onConfirm}
+                onCancel={() => setPromptDialog({ ...promptDialog, isOpen: false })}
+            />
+
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    {/* Profile Form */}
+                    <h2 className="text-lg font-semibold mb-4">
+                        {editingProfile ? 'Edit Profile' : 'Add New Profile'}
+                    </h2>
+
+                    <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1">Host *</label>
+                            <label className="block text-sm font-medium mb-1">Profile Name *</label>
                             <input
                                 type="text"
-                                value={formData.host}
-                                onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                                className={`w-full p-2 border rounded ${errors.host ? 'border-red-500' : 'border-gray-300'}`}
-                                placeholder="192.168.1.100"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className={`w-full p-2 border rounded ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="My Server"
                             />
-                            {errors.host && <div className="text-red-500 text-xs mt-1">{errors.host}</div>}
+                            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Host *</label>
+                                <input
+                                    type="text"
+                                    value={formData.host}
+                                    onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+                                    className={`w-full p-2 border rounded ${errors.host ? 'border-red-500' : 'border-gray-300'}`}
+                                    placeholder="192.168.1.100"
+                                />
+                                {errors.host && <div className="text-red-500 text-xs mt-1">{errors.host}</div>}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Port *</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="65535"
+                                    value={formData.port}
+                                    onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 22 })}
+                                    className={`w-full p-2 border rounded ${errors.port ? 'border-red-500' : 'border-gray-300'}`}
+                                />
+                                {errors.port && <div className="text-red-500 text-xs mt-1">{errors.port}</div>}
+                            </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium mb-1">Port *</label>
+                            <label className="block text-sm font-medium mb-1">Username *</label>
                             <input
-                                type="number"
-                                min="1"
-                                max="65535"
-                                value={formData.port}
-                                onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 22 })}
-                                className={`w-full p-2 border rounded ${errors.port ? 'border-red-500' : 'border-gray-300'}`}
+                                type="text"
+                                value={formData.username}
+                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                className={`w-full p-2 border rounded ${errors.username ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="user"
                             />
-                            {errors.port && <div className="text-red-500 text-xs mt-1">{errors.port}</div>}
+                            {errors.username && <div className="text-red-500 text-xs mt-1">{errors.username}</div>}
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Username *</label>
-                        <input
-                            type="text"
-                            value={formData.username}
-                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                            className={`w-full p-2 border rounded ${errors.username ? 'border-red-500' : 'border-gray-300'}`}
-                            placeholder="user"
-                        />
-                        {errors.username && <div className="text-red-500 text-xs mt-1">{errors.username}</div>}
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Authentication Type *</label>
-                        <select
-                            value={formData.authType}
-                            onChange={(e) => {
-                                setFormData({
-                                    ...formData,
-                                    authType: e.target.value as 'password' | 'key',
-                                    passwordId: '',
-                                    keyPath: ''
-                                })
-                                setShowPassword(false)
-                            }}
-                            className="w-full p-2 border border-gray-300 rounded"
-                        >
-                            <option value="password">Password</option>
-                            <option value="key">SSH Key</option>
-                        </select>
-                    </div>
-
-                    {formData.authType === 'password' ? (
                         <div>
-                            <label className="block text-sm font-medium mb-1">Password *</label>
-                            <div className="flex space-x-2">
-                                <div className="relative flex-1">
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        value={formData.passwordId}
-                                        onChange={(e) => setFormData({ ...formData, passwordId: e.target.value })}
-                                        className={`w-full p-2 pr-10 border rounded ${errors.passwordId ? 'border-red-500' : 'border-gray-300'}`}
-                                        placeholder="Enter or select password"
-                                    />
+                            <label className="block text-sm font-medium mb-1">Authentication Type *</label>
+                            <select
+                                value={formData.authType}
+                                onChange={(e) => {
+                                    setFormData({
+                                        ...formData,
+                                        authType: e.target.value as 'password' | 'key',
+                                        passwordId: '',
+                                        keyPath: ''
+                                    })
+                                    setShowPassword(false)
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded"
+                            >
+                                <option value="password">Password</option>
+                                <option value="key">SSH Key</option>
+                            </select>
+                        </div>
+
+                        {formData.authType === 'password' ? (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Password *</label>
+                                <div className="flex space-x-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            value={formData.passwordId}
+                                            onChange={(e) => setFormData({ ...formData, passwordId: e.target.value })}
+                                            className={`w-full p-2 pr-10 border rounded ${errors.passwordId ? 'border-red-500' : 'border-gray-300'}`}
+                                            placeholder="Enter or select password"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            {showPassword ? (
+                                                <EyeSlashIcon className="h-5 w-5" />
+                                            ) : (
+                                                <EyeIcon className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
                                     <button
                                         type="button"
-                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
-                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="px-3 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors text-sm"
+                                        onClick={() => {
+                                            setPromptDialog({
+                                                isOpen: true,
+                                                message: 'Enter password for this profile:',
+                                                onConfirm: async (password) => {
+                                                    setPromptDialog({ ...promptDialog, isOpen: false })
+                                                    if (password) {
+                                                        try {
+                                                            // Store the password securely and get back the password ID
+                                                            const passwordId = await window.electronAPI.storePassword({
+                                                                id: editingProfile?.id,
+                                                                name: formData.name,
+                                                                host: formData.host,
+                                                                port: formData.port,
+                                                                username: formData.username,
+                                                                authType: 'password',
+                                                            }, password);
+                                                            setFormData({ ...formData, passwordId });
+                                                        } catch (error) {
+                                                            console.error('Failed to store password:', error);
+                                                            setAlertDialog({
+                                                                isOpen: true,
+                                                                message: 'Failed to store password securely: ' + (error as Error).message,
+                                                                variant: 'error'
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            })
+                                        }}
                                     >
-                                        {showPassword ? (
-                                            <EyeSlashIcon className="h-5 w-5" />
-                                        ) : (
-                                            <EyeIcon className="h-5 w-5" />
-                                        )}
+                                        Set
                                     </button>
                                 </div>
-                                <button
-                                    type="button"
-                                    className="px-3 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors text-sm"
-                                    onClick={async () => {
-                                        const password = window.prompt('Enter password for this profile:')
-                                        if (password) {
-                                            try {
-                                                // Store the password securely and get back the password ID
-                                                const passwordId = await window.electronAPI.storePassword({
-                                                    id: editingProfile?.id,
-                                                    name: formData.name,
-                                                    host: formData.host,
-                                                    port: formData.port,
-                                                    username: formData.username,
-                                                    authType: 'password',
-                                                }, password);
-                                                setFormData({ ...formData, passwordId });
-                                            } catch (error) {
-                                                console.error('Failed to store password:', error);
-                                                alert('Failed to store password securely: ' + (error as Error).message);
-                                            }
-                                        }
-                                    }}
-                                >
-                                    Set
-                                </button>
+                                {errors.passwordId && <div className="text-red-500 text-xs mt-1">{errors.passwordId}</div>}
                             </div>
-                            {errors.passwordId && <div className="text-red-500 text-xs mt-1">{errors.passwordId}</div>}
-                        </div>
-                    ) : (
-                        <div>
-                            <label className="block text-sm font-medium mb-1">SSH Key File *</label>
-                            <input
-                                type="text"
-                                value={formData.keyPath}
-                                onChange={(e) => setFormData({ ...formData, keyPath: e.target.value })}
-                                className={`w-full p-2 border rounded ${errors.keyPath ? 'border-red-500' : 'border-gray-300'}`}
-                                placeholder="C:\\Users\\user\\.ssh\\id_rsa"
-                            />
-                            {errors.keyPath && <div className="text-red-500 text-xs mt-1">{errors.keyPath}</div>}
-                        </div>
-                    )}
-                </div>
+                        ) : (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">SSH Key File *</label>
+                                <input
+                                    type="text"
+                                    value={formData.keyPath}
+                                    onChange={(e) => setFormData({ ...formData, keyPath: e.target.value })}
+                                    className={`w-full p-2 border rounded ${errors.keyPath ? 'border-red-500' : 'border-gray-300'}`}
+                                    placeholder="C:\\Users\\user\\.ssh\\id_rsa"
+                                />
+                                {errors.keyPath && <div className="text-red-500 text-xs mt-1">{errors.keyPath}</div>}
+                            </div>
+                        )}
+                    </div>
 
-                <div className="flex justify-between mt-6">
-                    {editingProfile && (
-                        <button
-                            onClick={() => handleDelete(editingProfile.id!)}
-                            disabled={deleteProfileMutation.isPending}
-                            className="px-4 py-2 text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {deleteProfileMutation.isPending ? 'Deleting...' : 'Delete Profile'}
-                        </button>
-                    )}
-                    <div className="flex space-x-3 ml-auto">
-                        <button
-                            onClick={handleCancel}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                            disabled={saveProfileMutation.isPending}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleTestConnection.bind(null, {
-                                id: editingProfile?.id,
-                                name: formData.name,
-                                host: formData.host,
-                                port: formData.port,
-                                username: formData.username,
-                                authType: formData.authType,
-                                keyPath: formData.keyPath || undefined,
-                                passwordId: formData.passwordId || undefined,
-                            })}
-                            disabled={testLoading === (editingProfile?.id || 'new') || !formData.name || !formData.host || !formData.username}
-                            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {testLoading === (editingProfile?.id || 'new') ? 'Testing...' : 'Test Connection'}
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={saveProfileMutation.isPending}
-                            className="px-4 py-2 text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {saveProfileMutation.isPending ? 'Saving...' : (editingProfile ? 'Update' : 'Save')}
-                        </button>
+                    <div className="flex justify-between mt-6">
+                        {editingProfile && (
+                            <button
+                                onClick={() => handleDelete(editingProfile.id!)}
+                                disabled={deleteProfileMutation.isPending}
+                                className="px-4 py-2 text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {deleteProfileMutation.isPending ? 'Deleting...' : 'Delete Profile'}
+                            </button>
+                        )}
+                        <div className="flex space-x-3 ml-auto">
+                            <button
+                                onClick={handleCancel}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                disabled={saveProfileMutation.isPending}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleTestConnection.bind(null, {
+                                    id: editingProfile?.id,
+                                    name: formData.name,
+                                    host: formData.host,
+                                    port: formData.port,
+                                    username: formData.username,
+                                    authType: formData.authType,
+                                    keyPath: formData.keyPath || undefined,
+                                    passwordId: formData.passwordId || undefined,
+                                })}
+                                disabled={testLoading === (editingProfile?.id || 'new') || !formData.name || !formData.host || !formData.username}
+                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {testLoading === (editingProfile?.id || 'new') ? 'Testing...' : 'Test Connection'}
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saveProfileMutation.isPending}
+                                className="px-4 py-2 text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {saveProfileMutation.isPending ? 'Saving...' : (editingProfile ? 'Update' : 'Save')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     )
 }

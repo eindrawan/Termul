@@ -5,6 +5,8 @@ import { useDeletion } from '../contexts/DeletionContext'
 import ContextMenu from './ContextMenu'
 import FileEditor from './FileEditor'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
+import ConfirmDialog from './ConfirmDialog'
+import AlertDialog from './AlertDialog'
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
 type SortDirection = 'asc' | 'desc'
@@ -71,6 +73,19 @@ export default function FileExplorer({
     // Breadcrumb edit state
     const [isEditingPath, setIsEditingPath] = useState(false)
     const [editingPath, setEditingPath] = useState('')
+
+    // Dialog states
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean
+        message: string
+        onConfirm: () => void
+    }>({ isOpen: false, message: '', onConfirm: () => { } })
+
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean
+        message: string
+        variant: 'success' | 'error' | 'warning' | 'info'
+    }>({ isOpen: false, message: '', variant: 'info' })
 
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error, refetch } = useQuery({
@@ -314,19 +329,7 @@ export default function FileExplorer({
         setContextMenu(null)
     }
 
-    const handleDelete = async (file: FileSystemEntry, skipConfirmation = false) => {
-        // Add confirmation dialog before deletion (unless skipped for bulk operations)
-        if (!skipConfirmation) {
-            const isDirectory = file.type === 'directory'
-            const confirmMessage = isDirectory
-                ? `Are you sure you want to delete the directory "${file.name}" and all its contents?`
-                : `Are you sure you want to delete "${file.name}"?`
-
-            if (!window.confirm(confirmMessage)) {
-                return // User cancelled the deletion
-            }
-        }
-
+    const performDelete = async (file: FileSystemEntry, skipConfirmation = false) => {
         try {
             // For bulk operations, don't manage progress here (it's handled by ContextMenu)
             if (!skipConfirmation) {
@@ -350,12 +353,37 @@ export default function FileExplorer({
             }
         } catch (error) {
             console.error('Failed to delete file:', error)
-            alert(`Failed to delete ${file.name}: ${error}`)
+            setAlertDialog({
+                isOpen: true,
+                message: `Failed to delete ${file.name}: ${error}`,
+                variant: 'error'
+            })
             // Make sure to finish deletion even on error for single file operations
             if (!skipConfirmation) {
                 finishDeletion()
             }
             throw error // Re-throw to let ContextMenu handle it for bulk operations
+        }
+    }
+
+    const handleDelete = async (file: FileSystemEntry, skipConfirmation = false) => {
+        // Add confirmation dialog before deletion (unless skipped for bulk operations)
+        if (!skipConfirmation) {
+            const isDirectory = file.type === 'directory'
+            const confirmMessage = isDirectory
+                ? `Are you sure you want to delete the directory "${file.name}" and all its contents?`
+                : `Are you sure you want to delete "${file.name}"?`
+
+            setConfirmDialog({
+                isOpen: true,
+                message: confirmMessage,
+                onConfirm: () => {
+                    setConfirmDialog({ ...confirmDialog, isOpen: false })
+                    performDelete(file, skipConfirmation)
+                }
+            })
+        } else {
+            await performDelete(file, skipConfirmation)
         }
     }
 
@@ -447,183 +475,200 @@ export default function FileExplorer({
     }
 
     return (
-        <div className={`flex flex-col h-full file-explorer-container ${disabled ? 'opacity-50' : ''}`}>
-            {/* Header */}
-            <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
-                <h3 className="font-medium">{title}</h3>
-                <div className="text-sm text-gray-600">{path}</div>
-            </div>
+        <>
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                message={confirmDialog.message}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+                variant="danger"
+            />
 
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center p-2 bg-white border-b text-sm">
-                {isEditingPath ? (
-                    <input
-                        type="text"
-                        value={editingPath}
-                        onChange={(e) => setEditingPath(e.target.value)}
-                        onKeyDown={handlePathEditKeyDown}
-                        onBlur={handlePathEditSubmit}
-                        className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                    />
-                ) : (
-                    <div
-                        className="flex items-center flex-1 cursor-text"
-                        onDoubleClick={handleBreadcrumbDoubleClick}
-                        title="Double-click to edit path"
-                    >
-                        {getBreadcrumbs().map((crumb, index) => (
-                            <React.Fragment key={index}>
-                                <button
-                                    onClick={() => handleBreadcrumbClick(index)}
-                                    disabled={crumb.isLast}
-                                    className={`hover:text-primary-600 ${crumb.isLast ? 'font-medium text-gray-900' : 'text-gray-600'
-                                        }`}
-                                >
-                                    {crumb.name}
-                                </button>
-                                {!crumb.isLast && (
-                                    <span className="mx-1 text-gray-400">
-                                        {isLocal ? '\\' : '/'}
-                                    </span>
-                                )}
-                            </React.Fragment>
-                        ))}
-                    </div>
-                )}
-            </div>
+            <AlertDialog
+                isOpen={alertDialog.isOpen}
+                message={alertDialog.message}
+                variant={alertDialog.variant}
+                onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+            />
 
-            {/* File List */}
-            <div className="flex-1 overflow-auto">
-                {isLoading && (
-                    <div className="flex items-center justify-center h-32">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                    </div>
-                )}
+            <div className={`flex flex-col h-full file-explorer-container ${disabled ? 'opacity-50' : ''}`}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
+                    <h3 className="font-medium">{title}</h3>
+                    <div className="text-sm text-gray-600">{path}</div>
+                </div>
 
-                {error && (
-                    <div className="p-4 text-red-600">
-                        Error loading files: {String(error)}
-                    </div>
-                )}
-
-                {!isLoading && !error && (
-                    <div className="w-full overflow-hidden">
-                        <table
-                            id="file-explorer-table"
-                            className="file-table w-full"
-                            onMouseDown={handleTableMouseDown}
+                {/* Breadcrumb Navigation */}
+                <div className="flex items-center p-2 bg-white border-b text-sm">
+                    {isEditingPath ? (
+                        <input
+                            type="text"
+                            value={editingPath}
+                            onChange={(e) => setEditingPath(e.target.value)}
+                            onKeyDown={handlePathEditKeyDown}
+                            onBlur={handlePathEditSubmit}
+                            className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            autoFocus
+                        />
+                    ) : (
+                        <div
+                            className="flex items-center flex-1 cursor-text"
+                            onDoubleClick={handleBreadcrumbDoubleClick}
+                            title="Double-click to edit path"
                         >
-                            <thead className="bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th
-                                        className="sortable-header text-left relative"
-                                        style={{ width: `${columnWidths.name}%`, minWidth: 0 }}
-                                        onClick={() => handleSort('name')}
+                            {getBreadcrumbs().map((crumb, index) => (
+                                <React.Fragment key={index}>
+                                    <button
+                                        onClick={() => handleBreadcrumbClick(index)}
+                                        disabled={crumb.isLast}
+                                        className={`hover:text-primary-600 ${crumb.isLast ? 'font-medium text-gray-900' : 'text-gray-600'
+                                            }`}
                                     >
-                                        <div className="flex items-center overflow-hidden">
-                                            Name
-                                            <span className="ml-1 flex-shrink-0">{getSortIcon('name')}</span>
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="sortable-header text-left relative"
-                                        style={{ width: `${columnWidths.size}%`, minWidth: 0 }}
-                                        onClick={() => handleSort('size')}
-                                    >
-                                        <div className="flex items-center overflow-hidden">
-                                            Size
-                                            <span className="ml-1 flex-shrink-0">{getSortIcon('size')}</span>
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="sortable-header text-left relative"
-                                        style={{ width: `${columnWidths.modified}%`, minWidth: 0 }}
-                                        onClick={() => handleSort('modified')}
-                                    >
-                                        <div className="flex items-center overflow-hidden">
-                                            Modified
-                                            <span className="ml-1 flex-shrink-0">{getSortIcon('modified')}</span>
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="sortable-header text-left relative"
-                                        style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }}
-                                        onClick={() => handleSort('permissions')}
-                                    >
-                                        <div className="flex items-center overflow-hidden">
-                                            Permissions
-                                            <span className="ml-1 flex-shrink-0">{getSortIcon('permissions')}</span>
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedFiles.length === 0 ? (
+                                        {crumb.name}
+                                    </button>
+                                    {!crumb.isLast && (
+                                        <span className="mx-1 text-gray-400">
+                                            {isLocal ? '\\' : '/'}
+                                        </span>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* File List */}
+                <div className="flex-1 overflow-auto">
+                    {isLoading && (
+                        <div className="flex items-center justify-center h-32">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="p-4 text-red-600">
+                            Error loading files: {String(error)}
+                        </div>
+                    )}
+
+                    {!isLoading && !error && (
+                        <div className="w-full overflow-hidden">
+                            <table
+                                id="file-explorer-table"
+                                className="file-table w-full"
+                                onMouseDown={handleTableMouseDown}
+                            >
+                                <thead className="bg-gray-50 sticky top-0">
                                     <tr>
-                                        <td colSpan={4} className="text-center py-4 text-gray-500">
-                                            No files found
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    sortedFiles.map((file) => (
-                                        <tr
-                                            key={file.path}
-                                            onClick={(e) => handleFileClick(file, e)}
-                                            onContextMenu={(e) => handleContextMenu(file, e)}
-                                            className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
+                                        <th
+                                            className="sortable-header text-left relative"
+                                            style={{ width: `${columnWidths.name}%`, minWidth: 0 }}
+                                            onClick={() => handleSort('name')}
                                         >
-                                            <td style={{ width: `${columnWidths.name}%`, minWidth: 0 }}>
-                                                <div className="flex items-center overflow-hidden">
-                                                    <span className="mr-2 flex-shrink-0">
-                                                        {file.type === 'directory' ? '📁' : '📄'}
-                                                    </span>
-                                                    <span className="truncate">{file.name}</span>
-                                                </div>
-                                            </td>
-                                            <td style={{ width: `${columnWidths.size}%`, minWidth: 0 }} className="truncate">
-                                                {formatFileSize(file.size)}
-                                            </td>
-                                            <td style={{ width: `${columnWidths.modified}%`, minWidth: 0 }} className="truncate">
-                                                {formatDate(file.modified)}
-                                            </td>
-                                            <td style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }} className="truncate">
-                                                {file.permissions || '-'}
+                                            <div className="flex items-center overflow-hidden">
+                                                Name
+                                                <span className="ml-1 flex-shrink-0">{getSortIcon('name')}</span>
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="sortable-header text-left relative"
+                                            style={{ width: `${columnWidths.size}%`, minWidth: 0 }}
+                                            onClick={() => handleSort('size')}
+                                        >
+                                            <div className="flex items-center overflow-hidden">
+                                                Size
+                                                <span className="ml-1 flex-shrink-0">{getSortIcon('size')}</span>
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="sortable-header text-left relative"
+                                            style={{ width: `${columnWidths.modified}%`, minWidth: 0 }}
+                                            onClick={() => handleSort('modified')}
+                                        >
+                                            <div className="flex items-center overflow-hidden">
+                                                Modified
+                                                <span className="ml-1 flex-shrink-0">{getSortIcon('modified')}</span>
+                                            </div>
+                                        </th>
+                                        <th
+                                            className="sortable-header text-left relative"
+                                            style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }}
+                                            onClick={() => handleSort('permissions')}
+                                        >
+                                            <div className="flex items-center overflow-hidden">
+                                                Permissions
+                                                <span className="ml-1 flex-shrink-0">{getSortIcon('permissions')}</span>
+                                            </div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedFiles.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="text-center py-4 text-gray-500">
+                                                No files found
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ) : (
+                                        sortedFiles.map((file) => (
+                                            <tr
+                                                key={file.path}
+                                                onClick={(e) => handleFileClick(file, e)}
+                                                onContextMenu={(e) => handleContextMenu(file, e)}
+                                                className={`${selectedFiles.some(f => f.path === file.path) ? 'selected' : ''}`}
+                                            >
+                                                <td style={{ width: `${columnWidths.name}%`, minWidth: 0 }}>
+                                                    <div className="flex items-center overflow-hidden">
+                                                        <span className="mr-2 flex-shrink-0">
+                                                            {file.type === 'directory' ? '📁' : '📄'}
+                                                        </span>
+                                                        <span className="truncate">{file.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td style={{ width: `${columnWidths.size}%`, minWidth: 0 }} className="truncate">
+                                                    {formatFileSize(file.size)}
+                                                </td>
+                                                <td style={{ width: `${columnWidths.modified}%`, minWidth: 0 }} className="truncate">
+                                                    {formatDate(file.modified)}
+                                                </td>
+                                                <td style={{ width: `${columnWidths.permissions}%`, minWidth: 0 }} className="truncate">
+                                                    {file.permissions || '-'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Context Menu */}
+                {contextMenu && (
+                    <ContextMenu
+                        x={contextMenu.x}
+                        y={contextMenu.y}
+                        file={contextMenu.file}
+                        isLocal={isLocal}
+                        connectionId={connectionId}
+                        onClose={handleContextMenuClose}
+                        onUpload={onUpload || (() => { })}
+                        onDownload={onDownload || (() => { })}
+                        onDelete={handleDelete}
+                        onEdit={handleEdit}
+                        selectedFiles={selectedFiles}
+                    />
                 )}
-            </div>
 
-            {/* Context Menu */}
-            {contextMenu && (
-                <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    file={contextMenu.file}
-                    isLocal={isLocal}
+                {/* File Editor */}
+                <FileEditor
+                    file={editorFile}
+                    isOpen={isEditorOpen}
+                    onClose={handleEditorClose}
                     connectionId={connectionId}
-                    onClose={handleContextMenuClose}
-                    onUpload={onUpload || (() => { })}
-                    onDownload={onDownload || (() => { })}
-                    onDelete={handleDelete}
-                    onEdit={handleEdit}
-                    selectedFiles={selectedFiles}
+                    isLocal={isLocal}
                 />
-            )}
-
-            {/* File Editor */}
-            <FileEditor
-                file={editorFile}
-                isOpen={isEditorOpen}
-                onClose={handleEditorClose}
-                connectionId={connectionId}
-                isLocal={isLocal}
-            />
-        </div>
+            </div>
+        </>
     )
 }

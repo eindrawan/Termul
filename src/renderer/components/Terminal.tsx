@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
+import AlertDialog from './AlertDialog'
 
 interface TerminalProps {
     connectionId: string
@@ -17,6 +18,12 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
+
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean
+        message: string
+        variant: 'success' | 'error' | 'warning' | 'info'
+    }>({ isOpen: false, message: '', variant: 'info' })
 
     // Initialize xterm when component mounts
     useEffect(() => {
@@ -153,7 +160,11 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
     const handleOpenTerminal = () => {
         if (!isConnected) {
-            alert('Please connect to a host first')
+            setAlertDialog({
+                isOpen: true,
+                message: 'Please connect to a host first',
+                variant: 'warning'
+            })
             return
         }
         openMutation.mutate(connectionId)
@@ -170,71 +181,80 @@ export default function Terminal({ connectionId }: TerminalProps) {
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-900">
-            {/* Terminal Header */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
-                <div className="flex items-center space-x-4">
-                    <h3 className="text-white font-medium">Terminal</h3>
-                    {terminalState.session?.host && (
-                        <span className="text-gray-400 text-sm">
-                            {terminalState.session.username || connection?.profile.username}@{terminalState.session.host}
-                        </span>
-                    )}
-                </div>
-                <div className="flex items-center space-x-2">
-                    {!terminalState.isConnected ? (
-                        <button
-                            onClick={handleOpenTerminal}
-                            disabled={openMutation.isLoading}
-                            className="btn btn-primary text-sm"
-                        >
-                            {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
-                        </button>
-                    ) : (
-                        <>
-                            <button
-                                onClick={handleClearTerminal}
-                                className="btn btn-secondary text-sm"
-                            >
-                                Clear
-                            </button>
-                            <button
-                                onClick={handleCloseTerminal}
-                                disabled={closeMutation.isLoading}
-                                className="btn btn-secondary text-sm"
-                            >
-                                {closeMutation.isLoading ? 'Closing...' : 'Close'}
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
+        <>
+            <AlertDialog
+                isOpen={alertDialog.isOpen}
+                message={alertDialog.message}
+                variant={alertDialog.variant}
+                onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+            />
 
-            {/* Terminal Body */}
-            <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
-                {/* Terminal container - always rendered */}
-                <div
-                    ref={terminalRef}
-                    className="w-full h-full"
-                    style={{
-                        display: terminalState.isConnected ? 'block' : 'none'
-                    }}
-                />
+            <div className="flex flex-col h-full bg-gray-900">
+                {/* Terminal Header */}
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+                    <div className="flex items-center space-x-4">
+                        <h3 className="text-white font-medium">Terminal</h3>
+                        {terminalState.session?.host && (
+                            <span className="text-gray-400 text-sm">
+                                {terminalState.session.username || connection?.profile.username}@{terminalState.session.host}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        {!terminalState.isConnected ? (
+                            <button
+                                onClick={handleOpenTerminal}
+                                disabled={openMutation.isLoading}
+                                className="btn btn-primary text-sm"
+                            >
+                                {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handleClearTerminal}
+                                    className="btn btn-secondary text-sm"
+                                >
+                                    Clear
+                                </button>
+                                <button
+                                    onClick={handleCloseTerminal}
+                                    disabled={closeMutation.isLoading}
+                                    className="btn btn-secondary text-sm"
+                                >
+                                    {closeMutation.isLoading ? 'Closing...' : 'Close'}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
 
-                {/* Not connected message */}
-                {!terminalState.isConnected && (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                        <div className="text-center">
-                            <div className="text-lg mb-2">Terminal not connected</div>
-                            <div className="text-sm">
-                                {!isConnected
-                                    ? 'Connect to a host to open a terminal session'
-                                    : 'Click "Open Terminal" to start a session'}
+                {/* Terminal Body */}
+                <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
+                    {/* Terminal container - always rendered */}
+                    <div
+                        ref={terminalRef}
+                        className="w-full h-full"
+                        style={{
+                            display: terminalState.isConnected ? 'block' : 'none'
+                        }}
+                    />
+
+                    {/* Not connected message */}
+                    {!terminalState.isConnected && (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                            <div className="text-center">
+                                <div className="text-lg mb-2">Terminal not connected</div>
+                                <div className="text-sm">
+                                    {!isConnected
+                                        ? 'Connect to a host to open a terminal session'
+                                        : 'Click "Open Terminal" to start a session'}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     )
 }
