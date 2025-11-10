@@ -4,9 +4,10 @@ export interface ConnectionProfile {
   host: string
   port: number
   username: string
-  authType: 'password' | 'key'
+  authType: 'password' | 'ssh-key' | 'private-key'
   keyPath?: string
   passwordId?: string
+  passphrase?: string
 }
 
 export interface FileSystemEntry {

@@ -20,9 +20,10 @@ const ConnectionProfileSchema = z.object({
   host: z.string(),
   port: z.number().default(22),
   username: z.string(),
-  authType: z.enum(['password', 'key']),
+  authType: z.enum(['password', 'ssh-key', 'private-key']),
   keyPath: z.string().nullable().optional().transform(val => val || undefined),
   passwordId: z.string().nullable().optional().transform(val => val || undefined),
+  passphrase: z.string().nullable().optional().transform(val => val || undefined),
 })
 
 const TransferDescriptorSchema = z.object({
@@ -110,6 +111,43 @@ export function setupIpcHandlers() {
     } catch (error) {
       console.error('Store password error:', error)
       throw error
+    }
+  })
+
+  ipcMain.handle('prompt-for-passphrase', async (_, keyPath: string) => {
+    try {
+      // This will need to be implemented to show a dialog in the renderer process
+      // For now, we'll return null to indicate no passphrase was provided
+      return await new Promise<string | null>((resolve) => {
+        // Store the resolve function globally so it can be called from the renderer
+        ;(global as any).pendingPassphrasePrompt = { keyPath, resolve }
+        
+        // Send an event to the renderer to show the passphrase dialog
+        if ((global as any).mainWindow) {
+          (global as any).mainWindow.webContents.send('show-passphrase-prompt', { keyPath })
+        }
+      })
+    } catch (error) {
+      console.error('Prompt for passphrase error:', error)
+      throw error
+    }
+  })
+
+  // Handle passphrase submission from renderer
+  ipcMain.on('passphrase-submitted', (_, passphrase: string) => {
+    if ((global as any).pendingPassphrasePrompt) {
+      const { resolve } = (global as any).pendingPassphrasePrompt
+      resolve(passphrase)
+      ;(global as any).pendingPassphrasePrompt = null
+    }
+  })
+
+  // Handle passphrase cancellation from renderer
+  ipcMain.on('passphrase-cancelled', () => {
+    if ((global as any).pendingPassphrasePrompt) {
+      const { resolve } = (global as any).pendingPassphrasePrompt
+      resolve(null)
+      ;(global as any).pendingPassphrasePrompt = null
     }
   })
 

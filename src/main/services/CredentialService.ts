@@ -4,11 +4,13 @@ import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { ConnectionProfile } from '../../renderer/types'
+import { validateAndFormatPrivateKey, validateAndFormatPrivateKeyWithMetadata } from '../utils/keyConverter'
 
 interface AuthCredentials {
   password?: string
   privateKey?: string
   passphrase?: string
+  needsPassphrase?: boolean
 }
 
 export class CredentialService {
@@ -28,11 +30,28 @@ export class CredentialService {
       const password = await keytar.getPassword(this.serviceName, passwordId)
       console.log(password)
       return { password: password || undefined }
-    } else if (profile.authType === 'key' && profile.keyPath) {
-      const privateKey = await this.getPrivateKey(profile.keyPath)
-      return { privateKey }
+    } else if ((profile.authType === 'ssh-key' || profile.authType === 'private-key') && profile.keyPath) {
+      // Use provided passphrase first, then check for cached passphrase
+      let passphrase = profile.passphrase;
+      if (!passphrase) {
+        const cachedPassphrase = await this.getCachedPassphrase(profile.keyPath);
+        passphrase = cachedPassphrase || undefined;
+      }
+
+      // Use the new function that returns both the key and whether it needs a passphrase
+      const { privateKey, needsPassphrase } = await validateAndFormatPrivateKeyWithMetadata(
+        profile.keyPath,
+        passphrase
+      );
+
+      // Only include passphrase if the key actually needs it
+      return {
+        privateKey,
+        passphrase: needsPassphrase ? passphrase : undefined,
+        needsPassphrase
+      }
     }
-    
+
     throw new Error('Invalid authentication type')
   }
 
@@ -44,10 +63,10 @@ export class CredentialService {
     return passwordId
   }
 
-  async getPrivateKey(keyPath: string): Promise<string> {
+  async getPrivateKey(keyPath: string, passphrase?: string): Promise<string> {
     try {
-      // Try to read the key file directly first
-      return readFileSync(keyPath, 'utf8')
+      // Use the key converter to validate and format the key
+      return await validateAndFormatPrivateKey(keyPath, passphrase)
     } catch (error) {
       throw new Error(`Failed to read private key: ${error}`)
     }

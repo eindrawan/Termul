@@ -8,7 +8,7 @@ const ConnectionProfileSchema = z.object({
   host: z.string(),
   port: z.number().default(22),
   username: z.string(),
-  authType: z.enum(['password', 'key']),
+  authType: z.enum(['password', 'ssh-key', 'private-key']),
   keyPath: z.string().optional(),
   passwordId: z.string().optional(),
 })
@@ -56,6 +56,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   storePassword: (profile: z.infer<typeof ConnectionProfileSchema>, password: string) =>
     ipcRenderer.invoke('store-password', profile, password),
+  
+  promptForPassphrase: (keyPath: string) =>
+    ipcRenderer.invoke('prompt-for-passphrase', keyPath),
+  
+  onShowPassphrasePrompt: (callback: (data: { keyPath: string }) => void) =>
+    ipcRenderer.on('show-passphrase-prompt', (_: any, data: { keyPath: string }) => callback(data)),
+  
+  submitPassphrase: (passphrase: string) =>
+    ipcRenderer.send('passphrase-submitted', passphrase),
+  
+  cancelPassphrasePrompt: () =>
+    ipcRenderer.send('passphrase-cancelled'),
   
   // Connection path management
   saveConnectionPath: (profileId: string, pathType: 'local' | 'remote', path: string) =>
@@ -178,6 +190,10 @@ declare global {
       deleteProfile: (id: string) => Promise<any>
       testConnection: (profile: any) => Promise<boolean>
       storePassword: (profile: any, password: string) => Promise<string>
+      promptForPassphrase: (keyPath: string) => Promise<string | null>
+      onShowPassphrasePrompt: (callback: (data: { keyPath: string }) => void) => void
+      submitPassphrase: (passphrase: string) => void
+      cancelPassphrasePrompt: () => void
       saveConnectionPath: (connectionId: string, pathType: 'local' | 'remote', path: string) => Promise<void>
       getConnectionPath: (connectionId: string, pathType: 'local' | 'remote') => Promise<string | null>
       getAllConnectionPaths: (connectionId: string) => Promise<{ local?: string; remote?: string }>

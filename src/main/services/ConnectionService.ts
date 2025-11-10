@@ -3,6 +3,7 @@ import { ConnectionProfile, ConnectionStatus } from '../../renderer/types'
 import { DatabaseService } from './DatabaseService'
 import { CredentialService } from './CredentialService'
 import { randomUUID } from 'crypto'
+import { detectKeyType } from '../utils/keyConverter'
 
 interface ConnectionInstance {
   id: string
@@ -41,17 +42,66 @@ export class ConnectionService {
       // Create SSH connection
       const ssh = new NodeSSH()
 
+      // Use provided passphrase first, then fall back to credentials
+      // But only if the key actually needs a passphrase
+      const passphrase = auth.needsPassphrase ? (profile.passphrase || auth.passphrase) : undefined
+
       const config: any = {
         host: profile.host,
         port: profile.port,
         username: profile.username,
         password: auth.password,
         privateKey: auth.privateKey,
-        passphrase: auth.passphrase,
+        passphrase: passphrase,
         readyTimeout: 30000,
       }
 
-      await ssh.connect(config)
+      try {
+        console.log('Connecting with config:', {
+          ...config,
+          privateKey: auth.privateKey ? `[REDACTED - ${auth.privateKey.substring(0, 50)}...]` : undefined,
+          privateKeyLength: auth.privateKey?.length,
+          needsPassphrase: auth.needsPassphrase,
+          passphraseProvided: !!passphrase
+        })
+        await ssh.connect(config)
+      } catch (error: any) {
+        // Check if this is a key format error
+        if (error.message?.includes('Cannot parse privateKey: Unsupported key format')) {
+          // Provide specific guidance for key format issues
+          const keyType = profile.keyPath ? detectKeyType(profile.keyPath) : 'unknown';
+          let errorMessage = `Unsupported private key format: ${keyType}. `;
+          
+          if (keyType.includes('PuTTY')) {
+            errorMessage += 'Convert your .ppk key to OpenSSH format using PuTTYgen: "Conversions" -> "Export OpenSSH key".';
+          } else if (keyType.includes('SSH2')) {
+            errorMessage += 'Convert your key to OpenSSH format using PuTTYgen or ssh-keygen.';
+          } else {
+            errorMessage += 'Make sure your private key is in OpenSSH format (starts with "-----BEGIN").';
+          }
+          
+          throw new Error(errorMessage);
+        }
+        // If using SSH key/private key and connection fails, it might need a passphrase
+        else if ((profile.authType === 'ssh-key' || profile.authType === 'private-key') && !passphrase &&
+            (error.message?.includes('passphrase') || error.message?.includes('decrypt'))) {
+          
+          // Prompt for passphrase
+          const promptedPassphrase = await this.promptForPassphrase(profile.keyPath || '')
+          if (promptedPassphrase) {
+            // Cache the passphrase for future use
+            await this.credentials.cachePassphrase(profile.keyPath || '', promptedPassphrase)
+            
+            // Update config with passphrase and retry
+            config.passphrase = promptedPassphrase
+            await ssh.connect(config)
+          } else {
+            throw new Error('Passphrase is required for this SSH key')
+          }
+        } else {
+          throw error
+        }
+      }
 
       const connectedStatus: ConnectionStatus = {
         connected: true,
@@ -156,24 +206,48 @@ export class ConnectionService {
       const auth = await this.credentials.getAuthCredentials(profile)
       const testSsh = new NodeSSH()
       
+      // Use provided passphrase first, then fall back to credentials
+      const passphrase = profile.passphrase || auth.passphrase
+      
       console.log({
         host: profile.host,
         port: profile.port,
         username: profile.username,
         password: auth.password,
         privateKey: auth.privateKey,
-        passphrase: auth.passphrase,
+        passphrase: passphrase,
         readyTimeout: 10000,
       })
-      await testSsh.connect({
-        host: profile.host,
-        port: profile.port,
-        username: profile.username,
-        password: auth.password,
-        privateKey: auth.privateKey,
-        passphrase: auth.passphrase,
-        readyTimeout: 10000,
-      })
+      
+      try {
+        await testSsh.connect({
+          host: profile.host,
+          port: profile.port,
+          username: profile.username,
+          password: auth.password,
+          privateKey: auth.privateKey,
+          passphrase: passphrase,
+          readyTimeout: 10000,
+        })
+      } catch (error: any) {
+        // Check if this is a key format error
+        if (error.message?.includes('Cannot parse privateKey: Unsupported key format')) {
+          // Provide specific guidance for key format issues
+          const keyType = profile.keyPath ? detectKeyType(profile.keyPath) : 'unknown';
+          console.error(`Key format error: ${keyType}. ${error.message}`);
+          return false;
+        }
+        // If using SSH key/private key and connection fails, it might need a passphrase
+        else if ((profile.authType === 'ssh-key' || profile.authType === 'private-key') && !passphrase &&
+            (error.message?.includes('passphrase') || error.message?.includes('decrypt'))) {
+          
+          // For testing, we'll return false since we can't prompt during a test
+          // The actual connection will prompt when needed
+          return false
+        } else {
+          throw error
+        }
+      }
       
       await testSsh.dispose()
       return true
@@ -192,5 +266,22 @@ export class ConnectionService {
 
   async getAllConnectionPaths(profileId: string): Promise<{ local?: string; remote?: string }> {
     return await this.db.getAllConnectionPaths(profileId)
+  }
+
+  private async promptForPassphrase(keyPath: string): Promise<string | null> {
+    // This will be implemented with IPC to prompt the user
+    // For now, we'll return null to indicate no passphrase was provided
+    if ((global as any).pendingPassphrasePrompt) {
+      return await new Promise<string | null>((resolve) => {
+        // Store the resolve function globally so it can be called from the renderer
+        ;(global as any).pendingPassphrasePrompt = { keyPath, resolve }
+        
+        // Send an event to the renderer to show the passphrase dialog
+        if ((global as any).mainWindow) {
+          (global as any).mainWindow.webContents.send('show-passphrase-prompt', { keyPath })
+        }
+      })
+    }
+    return null
   }
 }

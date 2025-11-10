@@ -17,9 +17,10 @@ interface ProfileFormData {
     host: string
     port: number
     username: string
-    authType: 'password' | 'key'
+    authType: 'password' | 'ssh-key' | 'private-key'
     keyPath: string
     passwordId: string
+    passphrase: string
 }
 
 interface ProfileFormErrors {
@@ -29,6 +30,7 @@ interface ProfileFormErrors {
     username?: string
     keyPath?: string
     passwordId?: string
+    passphrase?: string
 }
 
 const initialFormData: ProfileFormData = {
@@ -39,6 +41,7 @@ const initialFormData: ProfileFormData = {
     authType: 'password',
     keyPath: '',
     passwordId: '',
+    passphrase: '',
 }
 
 export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: externalEditingProfile }: ManageProfilesDialogProps) {
@@ -48,6 +51,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
     const [testLoading, setTestLoading] = useState<string | null>(null)
     const [errors, setErrors] = useState<ProfileFormErrors>({})
     const [showPassword, setShowPassword] = useState(false)
+    const [showPassphrase, setShowPassphrase] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [profileToDelete, setProfileToDelete] = useState<string | null>(null)
 
@@ -71,6 +75,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
             setEditingProfile(externalEditingProfile || null)
             setErrors({})
             setShowPassword(false)
+            setShowPassphrase(false)
         }
     }, [isOpen, externalEditingProfile])
 
@@ -89,7 +94,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
         if (!formData.username.trim()) {
             newErrors.username = 'Username is required'
         }
-        if (formData.authType === 'key' && !formData.keyPath.trim()) {
+        if ((formData.authType === 'ssh-key' || formData.authType === 'private-key') && !formData.keyPath.trim()) {
             newErrors.keyPath = 'Key file path is required for key authentication'
         }
         if (formData.authType === 'password' && !formData.passwordId.trim()) {
@@ -150,8 +155,12 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
         }
 
         // Only include authentication-specific fields when they have values
-        if (formData.authType === 'key' && formData.keyPath.trim()) {
+        if ((formData.authType === 'ssh-key' || formData.authType === 'private-key') && formData.keyPath.trim()) {
             profile.keyPath = formData.keyPath.trim()
+            // Include passphrase if provided
+            if (formData.passphrase.trim()) {
+                profile.passphrase = formData.passphrase.trim()
+            }
         }
         if (formData.authType === 'password' && finalPasswordId) {
             profile.passwordId = finalPasswordId
@@ -164,6 +173,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
         setEditingProfile(null)
         setErrors({})
         setShowPassword(false)
+        setShowPassphrase(false)
         onClose()
     }
 
@@ -179,6 +189,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                 authType: externalEditingProfile.authType,
                 keyPath: externalEditingProfile.keyPath || '',
                 passwordId: externalEditingProfile.passwordId || '',
+                passphrase: '', // Don't populate passphrase for security reasons
             })
         }
     }, [externalEditingProfile])
@@ -237,6 +248,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
         setEditingProfile(null)
         setErrors({})
         setShowPassword(false)
+        setShowPassphrase(false)
         onClose()
     }
 
@@ -336,7 +348,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                 onChange={(e) => {
                                     setFormData({
                                         ...formData,
-                                        authType: e.target.value as 'password' | 'key',
+                                        authType: e.target.value as 'password' | 'ssh-key' | 'private-key',
                                         passwordId: '',
                                         keyPath: ''
                                     })
@@ -345,7 +357,8 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                 className="w-full p-2 border border-gray-300 rounded"
                             >
                                 <option value="password">Password</option>
-                                <option value="key">SSH Key</option>
+                                <option value="ssh-key">SSH Key</option>
+                                <option value="private-key">Private Key File</option>
                             </select>
                         </div>
 
@@ -413,17 +426,51 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                 {errors.passwordId && <div className="text-red-500 text-xs mt-1">{errors.passwordId}</div>}
                             </div>
                         ) : (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">SSH Key File *</label>
-                                <input
-                                    type="text"
-                                    value={formData.keyPath}
-                                    onChange={(e) => setFormData({ ...formData, keyPath: e.target.value })}
-                                    className={`w-full p-2 border rounded ${errors.keyPath ? 'border-red-500' : 'border-gray-300'}`}
-                                    placeholder="C:\\Users\\user\\.ssh\\id_rsa"
-                                />
-                                {errors.keyPath && <div className="text-red-500 text-xs mt-1">{errors.keyPath}</div>}
-                            </div>
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        {formData.authType === 'ssh-key' ? 'SSH Key File' : 'Private Key File'} *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.keyPath}
+                                        onChange={(e) => setFormData({ ...formData, keyPath: e.target.value })}
+                                        className={`w-full p-2 border rounded ${errors.keyPath ? 'border-red-500' : 'border-gray-300'}`}
+                                        placeholder={formData.authType === 'ssh-key' ?
+                                            "C:\\Users\\user\\.ssh\\id_rsa" :
+                                            "C:\\Users\\user\\.ssh\\id_rsa"}
+                                    />
+                                    {errors.keyPath && <div className="text-red-500 text-xs mt-1">{errors.keyPath}</div>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Passphrase (Optional)</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassphrase ? "text" : "password"}
+                                            value={formData.passphrase}
+                                            onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
+                                            className={`w-full p-2 pr-10 border rounded ${errors.passphrase ? 'border-red-500' : 'border-gray-300'}`}
+                                            placeholder="Enter passphrase for private key"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                                            onClick={() => setShowPassphrase(!showPassphrase)}
+                                        >
+                                            {showPassphrase ? (
+                                                <EyeSlashIcon className="h-5 w-5" />
+                                            ) : (
+                                                <EyeIcon className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    {errors.passphrase && <div className="text-red-500 text-xs mt-1">{errors.passphrase}</div>}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Leave empty if the private key is not encrypted with a passphrase
+                                    </p>
+                                </div>
+                            </>
                         )}
                     </div>
 
@@ -455,6 +502,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                     authType: formData.authType,
                                     keyPath: formData.keyPath || undefined,
                                     passwordId: formData.passwordId || undefined,
+                                    passphrase: formData.passphrase || undefined,
                                 })}
                                 disabled={testLoading === (editingProfile?.id || 'new') || !formData.name || !formData.host || !formData.username}
                                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

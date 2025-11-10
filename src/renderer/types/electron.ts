@@ -12,6 +12,10 @@ export interface ElectronAPI {
   deleteProfile: (id: string) => Promise<any>
   testConnection: (profile: any) => Promise<boolean>
   storePassword: (profile: any, password: string) => Promise<string>
+  promptForPassphrase: (keyPath: string) => Promise<string | null>
+  onShowPassphrasePrompt: (callback: (data: { keyPath: string }) => void) => void
+  submitPassphrase: (passphrase: string) => void
+  cancelPassphrasePrompt: () => void
   
   // Connection path management
   saveConnectionPath: (profileId: string, pathType: 'local' | 'remote', path: string) => Promise<void>

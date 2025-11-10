@@ -22,13 +22,46 @@ export class DatabaseService {
         host TEXT NOT NULL,
         port INTEGER NOT NULL DEFAULT 22,
         username TEXT NOT NULL,
-        auth_type TEXT NOT NULL CHECK (auth_type IN ('password', 'key')),
+        auth_type TEXT NOT NULL CHECK (auth_type IN ('password', 'ssh-key', 'private-key')),
         key_path TEXT,
         password_id TEXT,
+        passphrase TEXT,
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER DEFAULT (strftime('%s', 'now'))
       )
     `)
+
+    // Migration: Update auth_type from 'key' to 'ssh-key' for existing profiles
+    // This needs to run immediately after the table is created
+    try {
+      this.db.exec(`UPDATE connection_profiles SET auth_type = 'ssh-key' WHERE auth_type = 'key'`)
+    } catch (error) {
+      // Migration already applied or no records to update
+    }
+
+    // Migration: Add passphrase column if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE connection_profiles ADD COLUMN passphrase TEXT`)
+    } catch (error) {
+      // Column already exists
+    }
+
+    // Migration: Update the check constraint by recreating the table if needed
+    // This handles the case where an old constraint still exists
+    try {
+      // Check if there's an old constraint by trying to insert an old value
+      // If this fails, we need to recreate the table with the new constraint
+      const testStmt = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='connection_profiles'");
+      const result: any = testStmt.get();
+      const tableSql = result?.sql || '';
+      
+      // If the old constraint still exists in the table definition, recreate the table
+      if (tableSql.includes("CHECK (auth_type IN ('password', 'key'))")) {
+        this.updateAuthTypeConstraint();
+      }
+    } catch (error) {
+      console.error('Error checking table constraint:', error);
+    }
 
     // Transfer queue table
     this.db.exec(`
@@ -51,13 +84,6 @@ export class DatabaseService {
         completed_at INTEGER
       )
     `)
-
-    // Migration: Add connection_id column if it doesn't exist
-    try {
-      this.db.exec(`ALTER TABLE transfer_queue ADD COLUMN connection_id TEXT`)
-    } catch (error) {
-      // Column already exists, ignore error
-    }
 
     // Known hosts table for SSH host key verification
     this.db.exec(`
@@ -96,8 +122,8 @@ export class DatabaseService {
   async saveProfile(profile: ConnectionProfile): Promise<ConnectionProfile> {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO connection_profiles
-      (id, name, host, port, username, auth_type, key_path, password_id, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
+      (id, name, host, port, username, auth_type, key_path, password_id, passphrase, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
     `)
 
     const id = profile.id || this.generateId()
@@ -109,7 +135,8 @@ export class DatabaseService {
       profile.username,
       profile.authType,
       profile.keyPath,
-      profile.passwordId
+      profile.passwordId,
+      profile.passphrase
     )
 
     return { ...profile, id }
@@ -129,9 +156,10 @@ export class DatabaseService {
       host: profile.host,
       port: profile.port,
       username: profile.username,
-      authType: profile.auth_type as 'password' | 'key',
+      authType: profile.auth_type as 'password' | 'ssh-key' | 'private-key',
       keyPath: profile.key_path || undefined,
       passwordId: profile.password_id || undefined,
+      passphrase: profile.passphrase || undefined,
     }))
   }
 
@@ -152,9 +180,10 @@ export class DatabaseService {
       host: profile.host,
       port: profile.port,
       username: profile.username,
-      authType: profile.auth_type as 'password' | 'key',
+      authType: profile.auth_type as 'password' | 'ssh-key' | 'private-key',
       keyPath: profile.key_path || undefined,
       passwordId: profile.password_id || undefined,
+      passphrase: profile.passphrase || undefined,
     }
   }
 
@@ -328,6 +357,72 @@ export class DatabaseService {
     })
     
     return paths
+  }
+
+  private updateAuthTypeConstraint(): void {
+    // Since SQLite doesn't support ALTER TABLE to modify CHECK constraints,
+    // we need to recreate the table with the new constraint
+    try {
+      // Begin transaction
+      this.db.exec('BEGIN TRANSACTION');
+      
+      // Create a temporary table with the new structure
+      this.db.exec(`
+        CREATE TABLE connection_profiles_new (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          host TEXT NOT NULL,
+          port INTEGER NOT NULL DEFAULT 22,
+          username TEXT NOT NULL,
+          auth_type TEXT NOT NULL CHECK (auth_type IN ('password', 'ssh-key', 'private-key')),
+          key_path TEXT,
+          password_id TEXT,
+          passphrase TEXT,
+          created_at INTEGER DEFAULT (strftime('%s', 'now')),
+          updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+      `);
+      
+      // Copy data from old table to new table
+      // Map old 'key' values to 'ssh-key' during the copy
+      this.db.exec(`
+        INSERT INTO connection_profiles_new
+        SELECT
+          id,
+          name,
+          host,
+          port,
+          username,
+          CASE
+            WHEN auth_type = 'key' THEN 'ssh-key'
+            ELSE auth_type
+          END as auth_type,
+          key_path,
+          password_id,
+          passphrase,
+          created_at,
+          updated_at
+        FROM connection_profiles
+      `);
+      
+      // Drop the old table
+      this.db.exec('DROP TABLE connection_profiles');
+      
+      // Rename the new table to the original name
+      this.db.exec('ALTER TABLE connection_profiles_new RENAME TO connection_profiles');
+      
+      // Commit transaction
+      this.db.exec('COMMIT');
+    } catch (error) {
+      // Rollback in case of error
+      try {
+        this.db.exec('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Rollback failed:', rollbackError);
+      }
+      console.error('Error updating auth type constraint:', error);
+      throw error;
+    }
   }
 
   private generateId(): string {

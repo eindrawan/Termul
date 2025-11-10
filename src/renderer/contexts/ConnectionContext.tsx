@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react'
 import { ConnectionProfile, ConnectionStatus, ActiveConnection } from '../types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
+import PassphraseDialog from '../components/PassphraseDialog'
 
 interface ConnectionState {
     profiles: ConnectionProfile[]
@@ -104,6 +105,12 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
     const [state, dispatch] = useReducer(connectionReducer, initialState)
     const queryClient = useQueryClient()
 
+    // Passphrase dialog state
+    const [passphraseDialog, setPassphraseDialog] = useState<{
+        isOpen: boolean
+        keyPath: string
+    }>({ isOpen: false, keyPath: '' })
+
     // Query for profiles
     const { data: profiles = [], refetch: refetchProfiles } = useQuery({
         queryKey: ['profiles'],
@@ -186,6 +193,32 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         }
     }, [])
 
+    // Set up passphrase prompt listener
+    useEffect(() => {
+        const handleShowPassphrasePrompt = (data: { keyPath: string }) => {
+            setPassphraseDialog({
+                isOpen: true,
+                keyPath: data.keyPath
+            })
+        }
+
+        window.electronAPI.onShowPassphrasePrompt(handleShowPassphrasePrompt)
+
+        return () => {
+            window.electronAPI.removeAllListeners('show-passphrase-prompt')
+        }
+    }, [])
+
+    const handlePassphraseSubmit = (passphrase: string) => {
+        window.electronAPI.submitPassphrase(passphrase)
+        setPassphraseDialog({ isOpen: false, keyPath: '' })
+    }
+
+    const handlePassphraseCancel = () => {
+        window.electronAPI.cancelPassphrasePrompt()
+        setPassphraseDialog({ isOpen: false, keyPath: '' })
+    }
+
     return (
         <ConnectionContext.Provider
             value={{
@@ -198,6 +231,12 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
             }}
         >
             {children}
+            <PassphraseDialog
+                isOpen={passphraseDialog.isOpen}
+                keyPath={passphraseDialog.keyPath}
+                onSubmit={handlePassphraseSubmit}
+                onCancel={handlePassphraseCancel}
+            />
         </ConnectionContext.Provider>
     )
 }
