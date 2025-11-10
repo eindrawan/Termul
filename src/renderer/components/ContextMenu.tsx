@@ -4,6 +4,15 @@ import { useDeletion } from '../contexts/DeletionContext'
 import { useQueryClient } from '@tanstack/react-query'
 import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
+import {
+    ArrowUpTrayIcon,
+    ArrowDownTrayIcon,
+    PencilIcon,
+    TrashIcon,
+    FolderIcon,
+    DocumentIcon,
+    AtSymbolIcon
+} from '@heroicons/react/24/outline'
 
 interface ContextMenuProps {
     x: number
@@ -267,7 +276,7 @@ export default function ContextMenu({
                                 onClick={handleBulkUpload}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                             >
-                                <span className="mr-2">⬆️</span>
+                                <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
                                 Upload ({selectedFiles.length})
                             </button>
                         )}
@@ -276,7 +285,7 @@ export default function ContextMenu({
                                 onClick={handleBulkDownload}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                             >
-                                <span className="mr-2">⬇️</span>
+                                <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                                 Download ({selectedFiles.length})
                             </button>
                         )}
@@ -290,7 +299,7 @@ export default function ContextMenu({
                             }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
                         >
-                            <span className="mr-2">🗑️</span>
+                            <TrashIcon className="mr-2 h-4 w-4" />
                             Delete ({selectedFiles.length})
                         </button>
                     </>
@@ -301,7 +310,7 @@ export default function ContextMenu({
                                 onClick={handleUpload}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                             >
-                                <span className="mr-2">⬆️</span>
+                                <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
                                 Upload
                             </button>
                         )}
@@ -310,7 +319,7 @@ export default function ContextMenu({
                                 onClick={handleDownload}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                             >
-                                <span className="mr-2">⬇️</span>
+                                <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                                 Download
                             </button>
                         )}
@@ -319,7 +328,7 @@ export default function ContextMenu({
                                 onClick={handleEdit}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                             >
-                                <span className="mr-2">✏️</span>
+                                <PencilIcon className="mr-2 h-4 w-4" />
                                 Edit
                             </button>
                         )}
@@ -330,14 +339,14 @@ export default function ContextMenu({
                             }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                         >
-                            <span className="mr-2">✏️</span>
+                            <AtSymbolIcon className="mr-2 h-4 w-4 italic" />
                             Rename
                         </button>
                         <button
                             onClick={handleDelete}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
                         >
-                            <span className="mr-2">🗑️</span>
+                            <TrashIcon className="mr-2 h-4 w-4" />
                             Delete
                         </button>
                     </>
@@ -350,7 +359,7 @@ export default function ContextMenu({
                             }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                         >
-                            <span className="mr-2">📁</span>
+                            <FolderIcon className="mr-2 h-4 w-4" />
                             New Folder
                         </button>
                         <button
@@ -360,7 +369,7 @@ export default function ContextMenu({
                             }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
                         >
-                            <span className="mr-2">📄</span>
+                            <DocumentIcon className="mr-2 h-4 w-4" />
                             New File
                         </button>
                     </>

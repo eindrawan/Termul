@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
 import AlertDialog from './AlertDialog'
+import { DocumentDuplicateIcon, ClipboardIcon } from '@heroicons/react/24/outline'
 
 interface TerminalProps {
     connectionId: string
@@ -184,10 +185,6 @@ export default function Terminal({ connectionId }: TerminalProps) {
         openMutation.mutate(connectionId)
     }
 
-    const handleCloseTerminal = () => {
-        closeMutation.mutate(connectionId)
-    }
-
     const handleClearTerminal = () => {
         if (xtermRef.current) {
             xtermRef.current.clear()
@@ -204,11 +201,11 @@ export default function Terminal({ connectionId }: TerminalProps) {
         // Create menu items
         const copyItem = document.createElement('button')
         copyItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
-        copyItem.innerHTML = '<span class="mr-2">📋</span>Copy'
+        copyItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>Copy'
 
         const pasteItem = document.createElement('button')
         pasteItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
-        pasteItem.innerHTML = '<span class="mr-2">📥</span>Paste'
+        pasteItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>Paste'
 
         // Add click handlers
         copyItem.addEventListener('click', async (e) => {
@@ -285,26 +282,17 @@ export default function Terminal({ connectionId }: TerminalProps) {
                             <button
                                 onClick={handleOpenTerminal}
                                 disabled={openMutation.isLoading}
-                                className="btn btn-primary text-sm"
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none text-sm font-medium transition-colors"
                             >
                                 {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
                             </button>
                         ) : (
-                            <>
-                                <button
-                                    onClick={handleClearTerminal}
-                                    className="btn btn-secondary text-sm"
-                                >
-                                    Clear
-                                </button>
-                                <button
-                                    onClick={handleCloseTerminal}
-                                    disabled={closeMutation.isLoading}
-                                    className="btn btn-secondary text-sm"
-                                >
-                                    {closeMutation.isLoading ? 'Closing...' : 'Close'}
-                                </button>
-                            </>
+                            <button
+                                onClick={handleClearTerminal}
+                                className="px-2 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium transition-colors"
+                            >
+                                Clear
+                            </button>
                         )}
                     </div>
                 </div>
