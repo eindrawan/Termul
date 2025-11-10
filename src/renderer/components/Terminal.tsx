@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
 import AlertDialog from './AlertDialog'
@@ -13,6 +14,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
     const terminalRef = useRef<HTMLDivElement>(null)
     const xtermRef = useRef<XTerm | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
+    const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
     const { state: connectionState } = useConnection()
     const { state: terminalState, openMutation, closeMutation, sendInputMutation } = useTerminal()
 
@@ -47,6 +49,10 @@ export default function Terminal({ connectionId }: TerminalProps) {
         const fitAddon = new FitAddon()
         term.loadAddon(fitAddon)
 
+        // Create and load web links addon
+        const webLinksAddon = new WebLinksAddon()
+        term.loadAddon(webLinksAddon)
+
         // Open terminal in DOM
         term.open(terminalRef.current)
 
@@ -65,6 +71,13 @@ export default function Terminal({ connectionId }: TerminalProps) {
         // Store references
         xtermRef.current = term
         fitAddonRef.current = fitAddon
+        webLinksAddonRef.current = webLinksAddon
+
+        // Add right-click context menu handler
+        term.element?.addEventListener('contextmenu', (e) => {
+            e.preventDefault()
+            handleRightClick(e, term)
+        })
 
         console.log('[Terminal] Xterm instance created and opened')
 
@@ -99,6 +112,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
             term.dispose()
             xtermRef.current = null
             fitAddonRef.current = null
+            webLinksAddonRef.current = null
         }
     }, [])
 
@@ -178,6 +192,72 @@ export default function Terminal({ connectionId }: TerminalProps) {
         if (xtermRef.current) {
             xtermRef.current.clear()
         }
+    }
+
+    const handleRightClick = (event: MouseEvent, term: XTerm) => {
+        // Create context menu
+        const contextMenu = document.createElement('div')
+        contextMenu.className = 'fixed bg-gray-800 border border-gray-600 rounded-md shadow-lg py-1 z-50 min-w-[150px]'
+        contextMenu.style.left = `${event.clientX}px`
+        contextMenu.style.top = `${event.clientY}px`
+
+        // Create menu items
+        const copyItem = document.createElement('button')
+        copyItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        copyItem.innerHTML = '<span class="mr-2">📋</span>Copy'
+
+        const pasteItem = document.createElement('button')
+        pasteItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        pasteItem.innerHTML = '<span class="mr-2">📥</span>Paste'
+
+        // Add click handlers
+        copyItem.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            try {
+                const selection = term.getSelection()
+                if (selection) {
+                    await navigator.clipboard.writeText(selection)
+                }
+                document.body.removeChild(contextMenu)
+            } catch (error) {
+                console.error('Failed to copy to clipboard:', error)
+                document.body.removeChild(contextMenu)
+            }
+        })
+
+        pasteItem.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            try {
+                const text = await navigator.clipboard.readText()
+                if (text) {
+                    sendInputMutation.mutate({ connectionId, data: text })
+                }
+                document.body.removeChild(contextMenu)
+            } catch (error) {
+                console.error('Failed to paste from clipboard:', error)
+                document.body.removeChild(contextMenu)
+            }
+        })
+
+        // Add items to menu
+        contextMenu.appendChild(copyItem)
+        contextMenu.appendChild(pasteItem)
+
+        // Add menu to DOM
+        document.body.appendChild(contextMenu)
+
+        // Remove menu on click outside
+        setTimeout(() => {
+            const removeMenu = (e: Event) => {
+                if (!contextMenu.contains(e.target as Node)) {
+                    if (document.body.contains(contextMenu)) {
+                        document.body.removeChild(contextMenu)
+                    }
+                    document.removeEventListener('click', removeMenu)
+                }
+            }
+            document.addEventListener('click', removeMenu)
+        }, 0)
     }
 
     return (

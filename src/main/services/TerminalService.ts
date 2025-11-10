@@ -75,7 +75,6 @@ export class TerminalService {
     }
 
     try {
-      console.log('Sending terminal input:', data)
       terminal.shellStream.write(data)
     } catch (error) {
       console.error('Failed to send terminal input:', error)
@@ -105,7 +104,6 @@ export class TerminalService {
     if (!shellStream || !session) return
 
     shellStream.on('data', (data: Buffer) => {
-      console.log('Terminal data received:', data.toString())
       this.emitTerminalOutput(connectionId, data.toString())
     })
 
@@ -127,12 +125,10 @@ export class TerminalService {
   private emitTerminalOutput(connectionId: string, data: string): void {
     const mainWindow = (global as any).mainWindow
     const terminal = this.terminals.get(connectionId)
-    console.log('[TerminalService] Emitting output, mainWindow exists:', !!mainWindow, 'session connected:', terminal?.session.connected)
     if (mainWindow && terminal?.session.connected) {
-      console.log('[TerminalService] Sending terminal-output event with data:', data)
       mainWindow.webContents.send('terminal-output', { connectionId, data })
     } else {
-      console.log('[TerminalService] Cannot emit - mainWindow:', !!mainWindow, 'terminal:', !!terminal, 'connected:', terminal?.session.connected)
+      console.error('[TerminalService] Cannot emit - mainWindow:', !!mainWindow, 'terminal:', !!terminal, 'connected:', terminal?.session.connected)
     }
   }
 

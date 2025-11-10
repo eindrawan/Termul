@@ -118,19 +118,19 @@ export class FileService {
       throw new Error('Connection configuration not available')
     }
 
-    console.log('FileService: Connection config:', {
-      host: connectionConfig.host,
-      port: connectionConfig.port,
-      username: connectionConfig.username,
-      hasPassword: !!connectionConfig.password,
-      hasKey: !!connectionConfig.privateKey
-    })
+    // console.log('FileService: Connection config:', {
+    //   host: connectionConfig.host,
+    //   port: connectionConfig.port,
+    //   username: connectionConfig.username,
+    //   hasPassword: !!connectionConfig.password,
+    //   hasKey: !!connectionConfig.privateKey
+    // })
 
     const sftp = new SFTPClient()
     
     try {
       // Connect SFTP client using the same connection details
-      console.log('FileService: Connecting SFTP client...')
+      // console.log('FileService: Connecting SFTP client...')
       await sftp.connect({
         host: connectionConfig.host,
         port: connectionConfig.port,
@@ -141,9 +141,9 @@ export class FileService {
         readyTimeout: 30000
       })
       
-      console.log('FileService: SFTP connection successful, listing files...')
+      // console.log('FileService: SFTP connection successful, listing files...')
       const entries = await sftp.list(path)
-      console.log('FileService: Retrieved entries:', entries.length)
+      // console.log('FileService: Retrieved entries:', entries.length)
       
       const files: FileSystemEntry[] = []
 
@@ -158,7 +158,7 @@ export class FileService {
         })
       }
 
-      console.log(`FileService: Successfully listed ${files.length} files`)
+      // console.log(`FileService: Successfully listed ${files.length} files`)
       
       // Sort: directories first, then files alphabetically
       return files.sort((a, b) => {

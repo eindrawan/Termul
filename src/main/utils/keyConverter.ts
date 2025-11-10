@@ -26,7 +26,7 @@ function isKeyEncrypted(keyContent: string): boolean {
 // Function to attempt to convert PuTTY key to OpenSSH format
 async function convertPuttyToOpenSSH(puttyKeyContent: string, passphrase?: string): Promise<string> {
   try {
-    console.log('Converting PPK with passphrase:', passphrase ? 'YES (provided)' : 'NO');
+    // console.log('Converting PPK with passphrase:', passphrase ? 'YES (provided)' : 'NO');
 
     // Use the ppk-to-openssh library to convert the key
     // Use default PEM format instead of OpenSSH format for better ssh2 compatibility
@@ -35,8 +35,8 @@ async function convertPuttyToOpenSSH(puttyKeyContent: string, passphrase?: strin
 
     const result = await parser.parse(puttyKeyContent, passphrase);
 
-    console.log('PPK conversion result type:', typeof result);
-    console.log('PPK conversion result keys:', result && typeof result === 'object' ? Object.keys(result) : 'N/A');
+    // console.log('PPK conversion result type:', typeof result);
+    // console.log('PPK conversion result keys:', result && typeof result === 'object' ? Object.keys(result) : 'N/A');
 
     // Extract the private key from the result object
     if (!result || typeof result !== 'object' || !result.privateKey) {
@@ -46,16 +46,11 @@ async function convertPuttyToOpenSSH(puttyKeyContent: string, passphrase?: strin
 
     let privateKeyString = result.privateKey;
 
-    // Check if the converted key is encrypted
-    const isEncrypted = privateKeyString.includes('ENCRYPTED') ||
-                       privateKeyString.includes('Proc-Type: 4,ENCRYPTED');
-    console.log('Converted key is encrypted:', isEncrypted);
-
-    // Log the raw key for debugging
-    console.log('Raw converted key (first 200 chars):', privateKeyString.substring(0, 200));
-    console.log('Raw converted key (last 100 chars):', privateKeyString.substring(privateKeyString.length - 100));
-    console.log('Key has \\r\\n:', privateKeyString.includes('\r\n'));
-    console.log('Key has \\n:', privateKeyString.includes('\n'));
+    // // Log the raw key for debugging
+    // console.log('Raw converted key (first 200 chars):', privateKeyString.substring(0, 200));
+    // console.log('Raw converted key (last 100 chars):', privateKeyString.substring(privateKeyString.length - 100));
+    // console.log('Key has \\r\\n:', privateKeyString.includes('\r\n'));
+    // console.log('Key has \\n:', privateKeyString.includes('\n'));
 
     // Ensure proper formatting with correct line endings (Unix style)
     // Replace any Windows line endings with Unix line endings
@@ -66,9 +61,9 @@ async function convertPuttyToOpenSSH(puttyKeyContent: string, passphrase?: strin
       privateKeyString += '\n';
     }
 
-    console.log('Formatted key starts with:', privateKeyString.substring(0, 50));
-    console.log('Formatted key length:', privateKeyString.length);
-    console.log('Key fingerprint:', result.fingerprint);
+    // console.log('Formatted key starts with:', privateKeyString.substring(0, 50));
+    // console.log('Formatted key length:', privateKeyString.length);
+    // console.log('Key fingerprint:', result.fingerprint);
 
     return privateKeyString;
   } catch (error: any) {
@@ -184,7 +179,7 @@ export async function validateAndFormatPrivateKeyWithMetadata(
   const privateKey = await validateAndFormatPrivateKey(keyPath, passphrase);
   const needsPassphrase = isKeyEncrypted(privateKey);
 
-  console.log('Key validation complete. Needs passphrase:', needsPassphrase);
+  // console.log('Key validation complete. Needs passphrase:', needsPassphrase);
 
   return { privateKey, needsPassphrase };
 }

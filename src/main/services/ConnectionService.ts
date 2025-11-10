@@ -57,13 +57,6 @@ export class ConnectionService {
       }
 
       try {
-        console.log('Connecting with config:', {
-          ...config,
-          privateKey: auth.privateKey ? `[REDACTED - ${auth.privateKey.substring(0, 50)}...]` : undefined,
-          privateKeyLength: auth.privateKey?.length,
-          needsPassphrase: auth.needsPassphrase,
-          passphraseProvided: !!passphrase
-        })
         await ssh.connect(config)
       } catch (error: any) {
         // Check if this is a key format error
