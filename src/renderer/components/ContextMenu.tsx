@@ -3,6 +3,7 @@ import { FileSystemEntry } from '../types'
 import { useDeletion } from '../contexts/DeletionContext'
 import { useQueryClient } from '@tanstack/react-query'
 import ConfirmDialog from './ConfirmDialog'
+import AlertDialog from './AlertDialog'
 
 interface ContextMenuProps {
     x: number
@@ -41,8 +42,20 @@ export default function ContextMenu({
         onConfirm: () => void
     }>({ isOpen: false, message: '', onConfirm: () => { } })
 
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean
+        message: string
+        variant: 'success' | 'error' | 'warning' | 'info'
+    }>({ isOpen: false, message: '', variant: 'info' })
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
+            // Don't close if clicking on the dialog
+            const target = event.target as Element
+            if (target.closest('.fixed.inset-0')) {
+                return
+            }
+
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 onClose()
             }
@@ -108,6 +121,9 @@ export default function ContextMenu({
     const performBulkDelete = async () => {
         // Start deletion progress for bulk operation
         startDeletion(selectedFiles.length)
+        let completedCount = 0
+        let failedCount = 0
+        const failedFiles: string[] = []
 
         try {
             // Delete files one by one with progress updates
@@ -115,18 +131,54 @@ export default function ContextMenu({
                 const file = selectedFiles[i]
                 updateDeletionProgress(i, file.name)
 
-                // Pass skipConfirmation=true to avoid double confirmations
-                await onDelete(file, true)
-            }
+                try {
+                    // Pass skipConfirmation=true to avoid double confirmations
+                    await onDelete(file, true)
+                    completedCount++
+                } catch (error) {
+                    console.error(`Failed to delete ${file.name}:`, error)
+                    failedCount++
+                    failedFiles.push(file.name)
+                }
 
-            // Update progress to complete
-            updateDeletionProgress(selectedFiles.length)
+                // Update progress after each file (success or failure)
+                updateDeletionProgress(i + 1)
+            }
 
             // Refresh the file list after bulk deletion
             const queryKey = isLocal ? 'local-files' : 'remote-files'
             queryClient.invalidateQueries({ queryKey: [queryKey] })
+
+            // Show results to user
+            if (failedCount === 0) {
+                // All files deleted successfully
+                setAlertDialog({
+                    isOpen: true,
+                    message: `Successfully deleted ${completedCount} file${completedCount !== 1 ? 's' : ''}.`,
+                    variant: 'success'
+                })
+            } else if (completedCount === 0) {
+                // All files failed to delete
+                setAlertDialog({
+                    isOpen: true,
+                    message: `Failed to delete ${failedCount} file${failedCount !== 1 ? 's' : ''}: ${failedFiles.join(', ')}`,
+                    variant: 'error'
+                })
+            } else {
+                // Partial success
+                setAlertDialog({
+                    isOpen: true,
+                    message: `Deleted ${completedCount} file${completedCount !== 1 ? 's' : ''}. Failed to delete ${failedCount} file${failedCount !== 1 ? 's' : ''}: ${failedFiles.join(', ')}`,
+                    variant: 'warning'
+                })
+            }
         } catch (error) {
             console.error('Bulk deletion error:', error)
+            setAlertDialog({
+                isOpen: true,
+                message: `An unexpected error occurred during bulk deletion: ${error}`,
+                variant: 'error'
+            })
         } finally {
             // Finish deletion progress
             finishDeletion()
@@ -152,9 +204,9 @@ export default function ContextMenu({
             setConfirmDialog({
                 isOpen: true,
                 message: confirmMessage,
-                onConfirm: () => {
-                    setConfirmDialog({ ...confirmDialog, isOpen: false })
-                    performBulkDelete()
+                onConfirm: async () => {
+                    setConfirmDialog({ isOpen: false, message: '', onConfirm: () => { } })
+                    await performBulkDelete()
                 }
             })
         } else {
@@ -178,12 +230,23 @@ export default function ContextMenu({
             <ConfirmDialog
                 isOpen={confirmDialog.isOpen}
                 message={confirmDialog.message}
-                onConfirm={confirmDialog.onConfirm}
+                onConfirm={() => {
+                    // Execute the onConfirm callback from state
+                    confirmDialog.onConfirm()
+                    onClose()
+                }}
                 onCancel={() => {
                     setConfirmDialog({ ...confirmDialog, isOpen: false })
                     onClose()
                 }}
                 variant="danger"
+            />
+
+            <AlertDialog
+                isOpen={alertDialog.isOpen}
+                message={alertDialog.message}
+                variant={alertDialog.variant}
+                onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
             />
 
             <div
@@ -212,7 +275,13 @@ export default function ContextMenu({
                             </button>
                         )}
                         <button
-                            onClick={handleBulkDelete}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleBulkDelete()
+                                // Don't call onClose() here - let the dialog handle closing
+                                return false
+                            }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
                         >
                             <span className="mr-2">🗑️</span>

@@ -86,7 +86,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
             if (fitAddonRef.current && xtermRef.current) {
                 try {
                     fitAddonRef.current.fit()
-                    console.log('[Terminal] Resized - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
+                    // console.log('[Terminal] Resized - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
                 } catch (error) {
                     console.error('[Terminal] Error during resize:', error)
                 }
@@ -106,7 +106,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
         // Cleanup
         return () => {
-            console.log('[Terminal] Cleaning up xterm instance')
+            // console.log('[Terminal] Cleaning up xterm instance')
             resizeObserver.disconnect()
             window.removeEventListener('resize', handleResize)
             term.dispose()
@@ -118,39 +118,39 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
     // Handle terminal output
     useEffect(() => {
-        console.log('[Terminal] Output effect triggered')
-        console.log('[Terminal] xtermRef.current:', xtermRef.current)
-        console.log('[Terminal] terminalState.output:', terminalState.output)
+        // console.log('[Terminal] Output effect triggered')
+        // console.log('[Terminal] xtermRef.current:', xtermRef.current)
+        // console.log('[Terminal] terminalState.output:', terminalState.output)
 
         if (!xtermRef.current) {
-            console.log('[Terminal] No xterm instance, skipping output')
+            // console.log('[Terminal] No xterm instance, skipping output')
             return
         }
 
         const term = xtermRef.current
         const outputArray = terminalState.output
 
-        console.log('[Terminal] Output changed, total items:', outputArray.length)
+        // console.log('[Terminal] Output changed, total items:', outputArray.length)
 
         // Write the latest output
         if (outputArray.length > 0) {
             const latestOutput = outputArray[outputArray.length - 1]
-            console.log('[Terminal] Writing output:', JSON.stringify(latestOutput))
+            // console.log('[Terminal] Writing output:', JSON.stringify(latestOutput))
             try {
                 term.write(latestOutput)
-                console.log('[Terminal] Output written successfully')
+                // console.log('[Terminal] Output written successfully')
             } catch (error) {
                 console.error('[Terminal] Error writing output:', error)
             }
         } else {
-            console.log('[Terminal] No output to write')
+            // console.log('[Terminal] No output to write')
         }
     }, [terminalState.output])
 
     // Auto-open terminal when connected
     useEffect(() => {
         if (isConnected && !terminalState.isConnected && !openMutation.isPending) {
-            console.log('[Terminal] Auto-opening terminal for connection:', connectionId)
+            // console.log('[Terminal] Auto-opening terminal for connection:', connectionId)
             openMutation.mutate(connectionId)
         }
     }, [isConnected, terminalState.isConnected, connectionId])
@@ -158,7 +158,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
     // Handle terminal visibility changes
     useEffect(() => {
         if (terminalState.isConnected && xtermRef.current && fitAddonRef.current) {
-            console.log('[Terminal] Session opened, fitting terminal')
+            // console.log('[Terminal] Session opened, fitting terminal')
             // Small delay to ensure the div is visible and has proper dimensions
             setTimeout(() => {
                 if (fitAddonRef.current && xtermRef.current) {
@@ -167,7 +167,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
                 }
             }, 100)
         } else if (!terminalState.isConnected && xtermRef.current) {
-            console.log('[Terminal] Session closed, clearing terminal')
+            // console.log('[Terminal] Session closed, clearing terminal')
             xtermRef.current.clear()
         }
     }, [terminalState.isConnected])

@@ -353,16 +353,18 @@ export default function FileExplorer({
             }
         } catch (error) {
             console.error('Failed to delete file:', error)
-            setAlertDialog({
-                isOpen: true,
-                message: `Failed to delete ${file.name}: ${error}`,
-                variant: 'error'
-            })
-            // Make sure to finish deletion even on error for single file operations
+
+            // For single file operations, show error dialog and finish deletion
             if (!skipConfirmation) {
+                setAlertDialog({
+                    isOpen: true,
+                    message: `Failed to delete ${file.name}: ${error}`,
+                    variant: 'error'
+                })
                 finishDeletion()
             }
-            throw error // Re-throw to let ContextMenu handle it for bulk operations
+            // For bulk operations, re-throw to let ContextMenu handle it
+            throw error
         }
     }
 
