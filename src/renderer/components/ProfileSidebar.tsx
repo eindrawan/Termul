@@ -97,10 +97,10 @@ export default function ProfileSidebar() {
                                         <button
                                             onClick={() => handleConnect(profile)}
                                             disabled={state.isLoading && !isProfileActive(profile)}
-                                            className={`w-full text-left p-3 rounded-md transition-colors ${isProfileConnected(profile)
-                                                ? 'bg-primary-600 text-white'
-                                                : isProfileActive(profile)
-                                                    ? 'bg-gray-700 text-white'
+                                            className={`w-full text-left p-3 rounded-md transition-colors ${isProfileConnected(profile) && isProfileActive(profile)
+                                                ? 'bg-primary-600 text-white border-2 border-primary-700'
+                                                : isProfileConnected(profile) && !isProfileActive(profile)
+                                                    ? 'text-white border-2 border-primary-600'
                                                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                                                 } ${state.isLoading && !isProfileActive(profile)
                                                     ? 'opacity-50 cursor-not-allowed'

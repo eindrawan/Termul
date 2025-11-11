@@ -52,20 +52,24 @@ export default function AlertDialog({
     const displayTitle = title || styles.defaultTitle
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-                <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{styles.icon}</div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-2">{displayTitle}</h3>
-                        <p className="text-gray-700 mb-6 whitespace-pre-wrap">{message}</p>
-                    </div>
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[100] backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-hidden">
+                {/* Header */}
+                <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex items-center space-x-2">
+                    <div className="text-lg">{styles.icon}</div>
+                    <h3 className="text-sm font-semibold text-gray-800">{displayTitle}</h3>
                 </div>
-                
-                <div className="flex justify-end">
+
+                {/* Content */}
+                <div className="px-4 py-3">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{message}</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end px-4 py-2.5 border-t border-gray-100 bg-gray-50">
                     <button
                         onClick={onConfirm}
-                        className={`px-4 py-2 text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${styles.button}`}
+                        className={`px-3 py-1.5 text-xs font-medium text-white rounded focus:outline-none focus:ring-1 focus:ring-offset-1 transition-colors shadow-sm ${styles.button}`}
                         autoFocus
                     >
                         {confirmText}

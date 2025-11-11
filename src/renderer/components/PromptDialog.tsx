@@ -51,37 +51,41 @@ export default function PromptDialog({
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[100] backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-md overflow-hidden">
                 <form onSubmit={handleSubmit}>
-                    <div className="flex items-start space-x-3 mb-4">
-                        <div className="text-2xl">💬</div>
-                        <div className="flex-1">
-                            <h3 className="text-lg font-semibold mb-2">{title}</h3>
-                            <p className="text-gray-700 mb-4">{message}</p>
-                        </div>
+                    {/* Header */}
+                    <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 flex items-center space-x-2">
+                        <div className="text-lg">💬</div>
+                        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
                     </div>
-                    
-                    <input
-                        ref={inputRef}
-                        type={inputType}
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="w-full p-2 border border-gray-300 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    
-                    <div className="flex justify-end space-x-3">
+
+                    {/* Content */}
+                    <div className="px-4 py-3">
+                        <p className="text-sm text-gray-700 mb-3">{message}</p>
+
+                        <input
+                            ref={inputRef}
+                            type={inputType}
+                            value={value}
+                            onChange={(e) => setValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end space-x-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50">
                         <button
                             type="button"
                             onClick={onCancel}
-                            className="px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
                         >
                             {cancelText}
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                            className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:ring-offset-1 transition-colors shadow-sm"
                         >
                             {confirmText}
                         </button>
