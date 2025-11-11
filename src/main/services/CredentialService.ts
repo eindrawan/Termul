@@ -28,7 +28,6 @@ export class CredentialService {
         throw new Error('No password ID available')
       }
       const password = await keytar.getPassword(this.serviceName, passwordId)
-      console.log(password)
       return { password: password || undefined }
     } else if ((profile.authType === 'ssh-key' || profile.authType === 'private-key') && profile.keyPath) {
       // Use provided passphrase first, then check for cached passphrase
@@ -57,9 +56,7 @@ export class CredentialService {
 
   async savePasswordCredentials(profile: ConnectionProfile, password: string): Promise<string> {
     const passwordId = profile.id || this.generateId()
-    console.log('CredentialService: Storing password with ID:', passwordId)
     await keytar.setPassword(this.serviceName, passwordId, password)
-    console.log('CredentialService: Successfully stored password, returning ID:', passwordId)
     return passwordId
   }
 
