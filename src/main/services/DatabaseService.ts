@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { app } from 'electron'
-import { ConnectionProfile, TransferItem } from '../../renderer/types'
+import { ConnectionProfile, TransferItem, Bookmark } from '../../renderer/types'
 
 export class DatabaseService {
   private db: Database.Database
@@ -110,12 +110,26 @@ export class DatabaseService {
       )
     `)
 
+    // Bookmarks table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS bookmarks (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        remote_path TEXT NOT NULL,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(profile_id, local_path, remote_path)
+      )
+    `)
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_status ON transfer_queue(status);
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_created_at ON transfer_queue(created_at);
       CREATE INDEX IF NOT EXISTS idx_connection_profiles_updated_at ON connection_profiles(updated_at);
       CREATE INDEX IF NOT EXISTS idx_connection_paths_connection_id ON connection_paths(connection_id);
+      CREATE INDEX IF NOT EXISTS idx_bookmarks_profile_id ON bookmarks(profile_id);
     `)
   }
 
@@ -357,6 +371,80 @@ export class DatabaseService {
     })
     
     return paths
+  }
+
+  // Bookmark methods
+  async saveBookmark(bookmark: Omit<Bookmark, 'id' | 'createdAt'>): Promise<Bookmark> {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO bookmarks
+      (id, profile_id, name, local_path, remote_path, created_at)
+      VALUES (?, ?, ?, ?, ?, strftime('%s', 'now'))
+    `)
+
+    const id = this.generateId()
+    stmt.run(
+      id,
+      bookmark.profileId,
+      bookmark.name,
+      bookmark.localPath,
+      bookmark.remotePath
+    )
+
+    return {
+      ...bookmark,
+      id,
+      createdAt: Math.floor(Date.now() / 1000)
+    }
+  }
+
+  async getBookmarks(profileId: string): Promise<Bookmark[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM bookmarks
+      WHERE profile_id = ?
+      ORDER BY created_at DESC
+    `)
+    
+    const bookmarks = stmt.all(profileId) as any[]
+    
+    return bookmarks.map(bookmark => ({
+      id: bookmark.id,
+      profileId: bookmark.profile_id,
+      name: bookmark.name,
+      localPath: bookmark.local_path,
+      remotePath: bookmark.remote_path,
+      createdAt: bookmark.created_at,
+    }))
+  }
+
+  async deleteBookmark(id: string): Promise<void> {
+    const stmt = this.db.prepare('DELETE FROM bookmarks WHERE id = ?')
+    stmt.run(id)
+  }
+
+  async getBookmark(id: string): Promise<Bookmark | null> {
+    const stmt = this.db.prepare('SELECT * FROM bookmarks WHERE id = ?')
+    const bookmark = stmt.get(id) as any
+    
+    if (!bookmark) return null
+    
+    return {
+      id: bookmark.id,
+      profileId: bookmark.profile_id,
+      name: bookmark.name,
+      localPath: bookmark.local_path,
+      remotePath: bookmark.remote_path,
+      createdAt: bookmark.created_at,
+    }
+  }
+
+  async bookmarkExists(profileId: string, localPath: string, remotePath: string): Promise<boolean> {
+    const stmt = this.db.prepare(`
+      SELECT COUNT(*) as count FROM bookmarks
+      WHERE profile_id = ? AND local_path = ? AND remote_path = ?
+    `)
+    
+    const result = stmt.get(profileId, localPath, remotePath) as any
+    return result.count > 0
   }
 
   private updateAuthTypeConstraint(): void {

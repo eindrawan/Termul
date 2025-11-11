@@ -60,6 +60,12 @@ export interface ElectronAPI {
   onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
   onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
   
+  // Bookmark management
+  saveBookmark: (bookmark: any) => Promise<any>
+  getBookmarks: (profileId: string) => Promise<any>
+  deleteBookmark: (id: string) => Promise<any>
+  getBookmark: (id: string) => Promise<any>
+  
   // Utility functions
   showOpenDialog: (options: any) => Promise<any>
   showSaveDialog: (options: any) => Promise<any>

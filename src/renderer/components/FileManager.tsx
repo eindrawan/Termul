@@ -1,8 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTransfer } from '../contexts/TransferContext'
-import { FileSystemEntry, TransferDescriptor } from '../types'
+import { FileSystemEntry, TransferDescriptor, Bookmark } from '../types'
 import FileExplorer from './FileExplorer'
+import BookmarkDialog from './BookmarkDialog'
+import BookmarkList from './BookmarkList'
+import {
+    BookmarkIcon as BookmarkHeroIcon,
+    BookOpenIcon
+} from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 interface FileManagerProps {
@@ -24,6 +30,10 @@ export default function FileManager({
     const [selectedRemoteFiles, setSelectedRemoteFiles] = useState<FileSystemEntry[]>([])
     const [leftPaneWidth, setLeftPaneWidth] = useState(50) // percentage
     const [isResizing, setIsResizing] = useState(false)
+    const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false)
+    const [bookmarkListOpen, setBookmarkListOpen] = useState(false)
+    const [bookmarkListPosition, setBookmarkListPosition] = useState({ x: 0, y: 0 })
+    const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
 
     const { state: connectionState, dispatch } = useConnection()
     const { enqueueMutation } = useTransfer()
@@ -117,6 +127,58 @@ export default function FileManager({
         }
     }, [isResizing])
 
+    // Load bookmarks when connection changes
+    useEffect(() => {
+        const loadBookmarks = async () => {
+            if (connection?.profile?.id) {
+                try {
+                    const profileBookmarks = await window.electronAPI.getBookmarks(connection.profile.id)
+                    setBookmarks(profileBookmarks)
+                } catch (error) {
+                    console.error('Failed to load bookmarks:', error)
+                }
+            } else {
+                // Clear bookmarks when no connection
+                setBookmarks([])
+            }
+        }
+
+        loadBookmarks()
+    }, [connection?.profile?.id])
+
+    const handleSaveBookmark = async (bookmark: Omit<Bookmark, 'id' | 'createdAt'>) => {
+        try {
+            await window.electronAPI.saveBookmark(bookmark)
+            // Reload bookmarks
+            if (connection?.profile?.id) {
+                const profileBookmarks = await window.electronAPI.getBookmarks(connection.profile.id)
+                setBookmarks(profileBookmarks)
+            }
+        } catch (error) {
+            console.error('Failed to save bookmark:', error)
+            alert(error instanceof Error ? error.message : 'Failed to save bookmark')
+        }
+    }
+
+    const handleSelectBookmark = (bookmark: Bookmark) => {
+        onLocalPathChange(bookmark.localPath)
+        onRemotePathChange(bookmark.remotePath)
+    }
+
+    const handleDeleteBookmark = async (id: string) => {
+        try {
+            await window.electronAPI.deleteBookmark(id)
+            // Reload bookmarks
+            if (connection?.profile?.id) {
+                const profileBookmarks = await window.electronAPI.getBookmarks(connection.profile.id)
+                setBookmarks(profileBookmarks)
+            }
+        } catch (error) {
+            console.error('Failed to delete bookmark:', error)
+            alert('Failed to delete bookmark')
+        }
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Compact header */}
@@ -137,8 +199,33 @@ export default function FileManager({
                         Download ({selectedRemoteFiles.length})
                     </button>
                 </div>
-                <div className="text-xs text-gray-600">
-                    {!isConnected && 'Not connected'}
+                <div className="flex items-center space-x-3">
+                    <button
+                        onClick={() => setBookmarkDialogOpen(true)}
+                        disabled={!isConnected}
+                        className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                        title="Save bookmark"
+                    >
+                        <BookmarkHeroIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setBookmarkListPosition({
+                                x: rect.left,
+                                y: rect.bottom + 2
+                            })
+                            setBookmarkListOpen(true)
+                        }}
+                        disabled={bookmarks.length === 0}
+                        className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                        title="View bookmarks"
+                    >
+                        <BookOpenIcon className="h-4 w-4" />
+                    </button>
+                    <div className="text-xs text-gray-600">
+                        {!isConnected && 'Not connected'}
+                    </div>
                 </div>
             </div>
 
@@ -189,6 +276,30 @@ export default function FileManager({
                     />
                 </div>
             </div>
+
+            {/* Bookmark Dialog */}
+            {bookmarkDialogOpen && (
+                <BookmarkDialog
+                    isOpen={bookmarkDialogOpen}
+                    onClose={() => setBookmarkDialogOpen(false)}
+                    onSave={handleSaveBookmark}
+                    profileId={connection?.profile?.id || ''}
+                    localPath={localPath}
+                    remotePath={remotePath}
+                />
+            )}
+
+            {/* Bookmark List */}
+            {bookmarkListOpen && (
+                <BookmarkList
+                    bookmarks={bookmarks}
+                    onSelectBookmark={handleSelectBookmark}
+                    onDeleteBookmark={handleDeleteBookmark}
+                    onClose={() => setBookmarkListOpen(false)}
+                    x={bookmarkListPosition.x}
+                    y={bookmarkListPosition.y}
+                />
+            )}
         </div>
     )
 }

@@ -84,3 +84,12 @@ export interface AppState {
   transferQueue: TransferItem[]
   terminalSession?: TerminalSession
 }
+
+export interface Bookmark {
+  id?: string
+  profileId: string
+  name: string
+  localPath: string
+  remotePath: string
+  createdAt?: number
+}

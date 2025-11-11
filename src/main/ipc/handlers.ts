@@ -37,6 +37,13 @@ const TransferDescriptorSchema = z.object({
   priority: z.number().default(0),
 })
 
+const BookmarkSchema = z.object({
+  profileId: z.string(),
+  name: z.string(),
+  localPath: z.string(),
+  remotePath: z.string(),
+})
+
 export function setupIpcHandlers() {
   // Connection handlers
   ipcMain.handle('connect-to-host', async (_, profile) => {
@@ -413,5 +420,55 @@ export function setupIpcHandlers() {
   ipcMain.handle('show-save-dialog', async (_, _options) => {
     // Implementation for file save dialog
     return { canceled: true, filePath: '' }
+  })
+
+  // Bookmark handlers
+  ipcMain.handle('save-bookmark', async (_, bookmark) => {
+    try {
+      const validatedBookmark = BookmarkSchema.parse(bookmark)
+      
+      // Check if bookmark already exists
+      const exists = await db.bookmarkExists(
+        validatedBookmark.profileId,
+        validatedBookmark.localPath,
+        validatedBookmark.remotePath
+      )
+      
+      if (exists) {
+        throw new Error('Bookmark already exists for this profile and paths')
+      }
+      
+      return await db.saveBookmark(validatedBookmark)
+    } catch (error) {
+      console.error('Save bookmark error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-bookmarks', async (_, profileId: string) => {
+    try {
+      return await db.getBookmarks(profileId)
+    } catch (error) {
+      console.error('Get bookmarks error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('delete-bookmark', async (_, id: string) => {
+    try {
+      return await db.deleteBookmark(id)
+    } catch (error) {
+      console.error('Delete bookmark error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-bookmark', async (_, id: string) => {
+    try {
+      return await db.getBookmark(id)
+    } catch (error) {
+      console.error('Get bookmark error:', error)
+      throw error
+    }
   })
 }

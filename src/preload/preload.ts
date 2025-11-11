@@ -24,6 +24,13 @@ const TransferDescriptorSchema = z.object({
   priority: z.number().default(0),
 })
 
+const BookmarkSchema = z.object({
+  profileId: z.string(),
+  name: z.string(),
+  localPath: z.string(),
+  remotePath: z.string(),
+})
+
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -195,6 +202,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Remove all listeners
   removeAllListeners: (channel: string) =>
     ipcRenderer.removeAllListeners(channel),
+  
+  // Bookmark management
+  saveBookmark: (bookmark: z.infer<typeof BookmarkSchema>) =>
+    ipcRenderer.invoke('save-bookmark', bookmark),
+  
+  getBookmarks: (profileId: string) =>
+    ipcRenderer.invoke('get-bookmarks', profileId),
+  
+  deleteBookmark: (id: string) =>
+    ipcRenderer.invoke('delete-bookmark', id),
+  
+  getBookmark: (id: string) =>
+    ipcRenderer.invoke('get-bookmark', id),
 })
 
 // Type definitions for the exposed API
@@ -248,6 +268,10 @@ declare global {
       showOpenDialog: (options: any) => Promise<any>
       showSaveDialog: (options: any) => Promise<any>
       removeAllListeners: (channel: string) => void
+      saveBookmark: (bookmark: any) => Promise<any>
+      getBookmarks: (profileId: string) => Promise<any>
+      deleteBookmark: (id: string) => Promise<any>
+      getBookmark: (id: string) => Promise<any>
     }
   }
 }
