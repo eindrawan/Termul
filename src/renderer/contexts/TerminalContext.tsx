@@ -7,6 +7,7 @@ interface TerminalState {
     session?: TerminalSession
     output: string[]
     isConnected: boolean
+    error?: string
 }
 
 type TerminalAction =
@@ -14,6 +15,7 @@ type TerminalAction =
     | { type: 'SET_OUTPUT'; payload: string[] }
     | { type: 'ADD_OUTPUT'; payload: string }
     | { type: 'SET_CONNECTED'; payload: boolean }
+    | { type: 'SET_ERROR'; payload: string | undefined }
 
 const initialState: TerminalState = {
     output: [],
@@ -36,6 +38,9 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
         case 'SET_CONNECTED':
             console.log('[TerminalReducer] SET_CONNECTED:', action.payload)
             return { ...state, isConnected: action.payload }
+        case 'SET_ERROR':
+            console.log('[TerminalReducer] SET_ERROR:', action.payload)
+            return { ...state, error: action.payload }
         default:
             return state
     }
@@ -47,6 +52,7 @@ const TerminalContext = createContext<{
     openMutation: any
     closeMutation: any
     sendInputMutation: any
+    clearError: () => void
 } | null>(null)
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
@@ -94,16 +100,29 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
+        const handleError = (data: { connectionId: string; error: string }) => {
+            console.log('[TerminalContext] Terminal error received:', data)
+            dispatch({ type: 'SET_ERROR', payload: data.error })
+            dispatch({ type: 'SET_CONNECTED', payload: false })
+        }
+
         // Set up listeners
         window.electronAPI.onTerminalOutput(handleOutput)
         window.electronAPI.onTerminalSessionUpdate(handleSessionUpdate)
+        window.electronAPI.onTerminalError(handleError)
 
         return () => {
             console.log('[TerminalContext] Cleaning up terminal listeners')
             window.electronAPI.removeAllListeners('terminal-output')
             window.electronAPI.removeAllListeners('terminal-session-update')
+            window.electronAPI.removeAllListeners('terminal-error')
         }
     }, [])
+
+    // Function to clear error state
+    const clearError = () => {
+        dispatch({ type: 'SET_ERROR', payload: undefined })
+    }
 
     return (
         <TerminalContext.Provider
@@ -113,6 +132,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
                 openMutation,
                 closeMutation,
                 sendInputMutation,
+                clearError,
             }}
         >
             {children}

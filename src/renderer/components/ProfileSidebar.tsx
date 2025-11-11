@@ -7,6 +7,7 @@ import { PlusIcon, ServerIcon, PencilIcon } from '@heroicons/react/24/outline'
 export default function ProfileSidebar() {
     const [showProfileDialog, setShowProfileDialog] = useState(false)
     const [editingProfile, setEditingProfile] = useState<ConnectionProfile | null>(null)
+    const [connectingProfileId, setConnectingProfileId] = useState<string | null>(null)
     const { state, connectMutation, disconnectMutation, dispatch } = useConnection()
 
     const handleConnect = (profile: ConnectionProfile) => {
@@ -21,13 +22,27 @@ export default function ProfileSidebar() {
             return
         }
 
+        // Set loading state for this profile
+        if (profile.id) {
+            setConnectingProfileId(profile.id)
+        }
+
         // Otherwise, create a new connection
         const cleanProfile = {
             ...profile,
             keyPath: profile.keyPath || undefined,
             passwordId: profile.passwordId || undefined,
         }
-        connectMutation.mutate(cleanProfile)
+        connectMutation.mutate(cleanProfile, {
+            onSuccess: () => {
+                // Clear loading state on successful connection
+                setConnectingProfileId(null)
+            },
+            onError: () => {
+                // Clear loading state on connection error
+                setConnectingProfileId(null)
+            }
+        })
     }
 
     const handleDisconnect = (connectionId: string, event: React.MouseEvent) => {
@@ -60,11 +75,6 @@ export default function ProfileSidebar() {
     const isProfileConnected = (profile: ConnectionProfile) => {
         const connection = getProfileConnection(profile)
         return connection?.status.connected || false
-    }
-
-    const isProfileConnecting = (profile: ConnectionProfile) => {
-        const connection = getProfileConnection(profile)
-        return connection?.status.connecting || false
     }
 
     return (
@@ -110,7 +120,11 @@ export default function ProfileSidebar() {
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center space-x-2">
-                                                        <ServerIcon className="h-4 w-4 flex-shrink-0" />
+                                                        {connectingProfileId === profile.id ? (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                        ) : (
+                                                            <ServerIcon className="h-4 w-4 flex-shrink-0" />
+                                                        )}
                                                         <div className="font-medium truncate">{profile.name}</div>
                                                     </div>
                                                     <div className="text-xs mt-1 truncate opacity-80">
@@ -128,11 +142,6 @@ export default function ProfileSidebar() {
                                                     >
                                                         <PencilIcon className="h-4 w-4 text-gray-300 hover:text-white" />
                                                     </button>
-                                                    {isProfileConnecting(profile) && (
-                                                        <div className="ml-2 flex-shrink-0">
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                             {isProfileConnected(profile) && (

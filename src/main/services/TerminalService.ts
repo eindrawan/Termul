@@ -50,8 +50,18 @@ export class TerminalService {
       this.setupShellStream(connectionId, shellStream, session)
 
       return session
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to open terminal:', error)
+      
+      // Handle specific SSH connection errors
+      if (error.message?.includes('Not connected to server') ||
+          error.message?.includes('Connection closed') ||
+          error.message?.includes('Socket is closed')) {
+        this.emitTerminalError(connectionId, 'Connection to server was lost. Please reconnect.')
+        // Close the terminal to clean up
+        await this.closeTerminal(connectionId)
+      }
+      
       throw error
     }
   }
@@ -113,12 +123,23 @@ export class TerminalService {
       if (terminal) {
         terminal.session.connected = false
         this.emitTerminalUpdate(connectionId, terminal.session)
+        // Emit error event to notify about connection loss
+        this.emitTerminalError(connectionId, 'Terminal connection was closed')
       }
     })
 
     shellStream.on('error', (error: Error) => {
       console.error('Terminal stream error:', error)
       this.emitTerminalOutput(connectionId, `\r\n\x1b[31mError: ${error.message}\x1b[0m\r\n`)
+      
+      // Handle specific SSH connection errors
+      if (error.message?.includes('Not connected to server') ||
+          error.message?.includes('Connection closed') ||
+          error.message?.includes('Socket is closed')) {
+        this.emitTerminalError(connectionId, 'Connection to server was lost. Please reconnect.')
+        // Close the terminal to clean up
+        this.closeTerminal(connectionId)
+      }
     })
   }
 
@@ -135,6 +156,12 @@ export class TerminalService {
   private emitTerminalUpdate(connectionId: string, session: TerminalSession): void {
     if ((global as any).mainWindow) {
       (global as any).mainWindow.webContents.send('terminal-session-update', { connectionId, session })
+    }
+  }
+
+  private emitTerminalError(connectionId: string, errorMessage: string): void {
+    if ((global as any).mainWindow) {
+      (global as any).mainWindow.webContents.send('terminal-error', { connectionId, error: errorMessage })
     }
   }
 

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { app } from 'electron'
-import { ConnectionProfile, TransferItem, Bookmark } from '../../renderer/types'
+import { ConnectionProfile, TransferItem, Bookmark, TerminalBookmark } from '../../renderer/types'
 
 export class DatabaseService {
   private db: Database.Database
@@ -123,6 +123,19 @@ export class DatabaseService {
       )
     `)
 
+    // Terminal bookmarks table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS terminal_bookmarks (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        command TEXT NOT NULL,
+        description TEXT,
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(profile_id, name, command)
+      )
+    `)
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_status ON transfer_queue(status);
@@ -130,6 +143,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_connection_profiles_updated_at ON connection_profiles(updated_at);
       CREATE INDEX IF NOT EXISTS idx_connection_paths_connection_id ON connection_paths(connection_id);
       CREATE INDEX IF NOT EXISTS idx_bookmarks_profile_id ON bookmarks(profile_id);
+      CREATE INDEX IF NOT EXISTS idx_terminal_bookmarks_profile_id ON terminal_bookmarks(profile_id);
     `)
   }
 
@@ -444,6 +458,80 @@ export class DatabaseService {
     `)
     
     const result = stmt.get(profileId, localPath, remotePath) as any
+    return result.count > 0
+  }
+
+  // Terminal bookmark methods
+  async saveTerminalBookmark(bookmark: Omit<TerminalBookmark, 'id' | 'createdAt'>): Promise<TerminalBookmark> {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO terminal_bookmarks
+      (id, profile_id, name, command, description, created_at)
+      VALUES (?, ?, ?, ?, ?, strftime('%s', 'now'))
+    `)
+
+    const id = this.generateId()
+    stmt.run(
+      id,
+      bookmark.profileId,
+      bookmark.name,
+      bookmark.command,
+      bookmark.description || null
+    )
+
+    return {
+      ...bookmark,
+      id,
+      createdAt: Math.floor(Date.now() / 1000)
+    }
+  }
+
+  async getTerminalBookmarks(profileId: string): Promise<TerminalBookmark[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM terminal_bookmarks
+      WHERE profile_id = ?
+      ORDER BY created_at DESC
+    `)
+    
+    const bookmarks = stmt.all(profileId) as any[]
+    
+    return bookmarks.map(bookmark => ({
+      id: bookmark.id,
+      profileId: bookmark.profile_id,
+      name: bookmark.name,
+      command: bookmark.command,
+      description: bookmark.description,
+      createdAt: bookmark.created_at,
+    }))
+  }
+
+  async deleteTerminalBookmark(id: string): Promise<void> {
+    const stmt = this.db.prepare('DELETE FROM terminal_bookmarks WHERE id = ?')
+    stmt.run(id)
+  }
+
+  async getTerminalBookmark(id: string): Promise<TerminalBookmark | null> {
+    const stmt = this.db.prepare('SELECT * FROM terminal_bookmarks WHERE id = ?')
+    const bookmark = stmt.get(id) as any
+    
+    if (!bookmark) return null
+    
+    return {
+      id: bookmark.id,
+      profileId: bookmark.profile_id,
+      name: bookmark.name,
+      command: bookmark.command,
+      description: bookmark.description,
+      createdAt: bookmark.created_at,
+    }
+  }
+
+  async terminalBookmarkExists(profileId: string, name: string, command: string): Promise<boolean> {
+    const stmt = this.db.prepare(`
+      SELECT COUNT(*) as count FROM terminal_bookmarks
+      WHERE profile_id = ? AND name = ? AND command = ?
+    `)
+    
+    const result = stmt.get(profileId, name, command) as any
     return result.count > 0
   }
 

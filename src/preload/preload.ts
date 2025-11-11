@@ -31,6 +31,13 @@ const BookmarkSchema = z.object({
   remotePath: z.string(),
 })
 
+const TerminalBookmarkSchema = z.object({
+  profileId: z.string(),
+  name: z.string(),
+  command: z.string(),
+  description: z.string().optional(),
+})
+
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -191,6 +198,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('terminal-session-update', listener)
     return listener
   },
+
+  onTerminalError: (callback: (data: { connectionId: string; error: string }) => void) => {
+    // Remove any existing listeners to prevent duplicates
+    ipcRenderer.removeAllListeners('terminal-error')
+    
+    const listener = (_: any, data: { connectionId: string; error: string }) => {
+      callback(data)
+    }
+    ipcRenderer.on('terminal-error', listener)
+    return listener
+  },
   
   // Utility functions
   showOpenDialog: (options: any) =>
@@ -215,6 +233,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   getBookmark: (id: string) =>
     ipcRenderer.invoke('get-bookmark', id),
+  
+  // Terminal bookmark management
+  saveTerminalBookmark: (bookmark: z.infer<typeof TerminalBookmarkSchema>) =>
+    ipcRenderer.invoke('save-terminal-bookmark', bookmark),
+  
+  getTerminalBookmarks: (profileId: string) =>
+    ipcRenderer.invoke('get-terminal-bookmarks', profileId),
+  
+  deleteTerminalBookmark: (id: string) =>
+    ipcRenderer.invoke('delete-terminal-bookmark', id),
+  
+  getTerminalBookmark: (id: string) =>
+    ipcRenderer.invoke('get-terminal-bookmark', id),
 })
 
 // Type definitions for the exposed API
@@ -265,6 +296,7 @@ declare global {
       resizeTerminal: (connectionId: string, cols: number, rows: number) => Promise<any>
       onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
       onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
+      onTerminalError: (callback: (data: { connectionId: string; error: string }) => void) => void
       showOpenDialog: (options: any) => Promise<any>
       showSaveDialog: (options: any) => Promise<any>
       removeAllListeners: (channel: string) => void
@@ -272,6 +304,10 @@ declare global {
       getBookmarks: (profileId: string) => Promise<any>
       deleteBookmark: (id: string) => Promise<any>
       getBookmark: (id: string) => Promise<any>
+      saveTerminalBookmark: (bookmark: any) => Promise<any>
+      getTerminalBookmarks: (profileId: string) => Promise<any>
+      deleteTerminalBookmark: (id: string) => Promise<any>
+      getTerminalBookmark: (id: string) => Promise<any>
     }
   }
 }

@@ -5,7 +5,10 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
 import AlertDialog from './AlertDialog'
-import { DocumentDuplicateIcon, ClipboardIcon } from '@heroicons/react/24/outline'
+import TerminalBookmarkDialog from './TerminalBookmarkDialog'
+import TerminalBookmarkList from './TerminalBookmarkList'
+import { TerminalBookmark } from '../types'
+import { DocumentDuplicateIcon, ClipboardIcon, BookmarkIcon, BookOpenIcon } from '@heroicons/react/24/outline'
 
 interface TerminalProps {
     connectionId: string
@@ -17,7 +20,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
     const fitAddonRef = useRef<FitAddon | null>(null)
     const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
     const { state: connectionState } = useConnection()
-    const { state: terminalState, openMutation, closeMutation, sendInputMutation } = useTerminal()
+    const { state: terminalState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
@@ -27,6 +30,20 @@ export default function Terminal({ connectionId }: TerminalProps) {
         message: string
         variant: 'success' | 'error' | 'warning' | 'info'
     }>({ isOpen: false, message: '', variant: 'info' })
+
+    const [bookmarkDialog, setBookmarkDialog] = useState<{
+        isOpen: boolean
+        initialCommand: string
+        initialName: string
+    }>({ isOpen: false, initialCommand: '', initialName: '' })
+
+    const [bookmarkList, setBookmarkList] = useState<{
+        isOpen: boolean
+        x: number
+        y: number
+    }>({ isOpen: false, x: 0, y: 0 })
+
+    const [terminalBookmarks, setTerminalBookmarks] = useState<TerminalBookmark[]>([])
 
     // Initialize xterm when component mounts
     useEffect(() => {
@@ -154,6 +171,25 @@ export default function Terminal({ connectionId }: TerminalProps) {
         }
     }, [terminalState.output])
 
+    // Handle terminal errors
+    useEffect(() => {
+        if (terminalState.error) {
+            setAlertDialog({
+                isOpen: true,
+                message: terminalState.error,
+                variant: 'error'
+            })
+
+            // Disconnect the terminal when an error occurs
+            if (terminalState.isConnected) {
+                closeMutation.mutate(connectionId)
+            }
+
+            // Clear the error after showing the dialog
+            clearError()
+        }
+    }, [terminalState.error, terminalState.isConnected, connectionId, closeMutation, clearError])
+
     // Auto-open terminal when connected
     useEffect(() => {
         if (isConnected && !terminalState.isConnected && !openMutation.isPending) {
@@ -186,6 +222,22 @@ export default function Terminal({ connectionId }: TerminalProps) {
         }
     }, [terminalState.isConnected])
 
+    // Load terminal bookmarks when connection changes
+    useEffect(() => {
+        const loadBookmarks = async () => {
+            if (connection?.profile.id) {
+                try {
+                    const bookmarks = await window.electronAPI.getTerminalBookmarks(connection.profile.id)
+                    setTerminalBookmarks(bookmarks)
+                } catch (error) {
+                    console.error('Failed to load terminal bookmarks:', error)
+                }
+            }
+        }
+
+        loadBookmarks()
+    }, [connection?.profile.id])
+
     const handleOpenTerminal = () => {
         if (!isConnected) {
             setAlertDialog({
@@ -204,6 +256,88 @@ export default function Terminal({ connectionId }: TerminalProps) {
         }
     }
 
+    const handleBookmarkCommand = () => {
+        const selection = xtermRef.current?.getSelection()
+        if (selection) {
+            setBookmarkDialog({
+                isOpen: true,
+                initialCommand: selection,
+                initialName: ''
+            })
+        } else {
+            setBookmarkDialog({
+                isOpen: true,
+                initialCommand: '',
+                initialName: ''
+            })
+        }
+    }
+
+    const handleSaveBookmark = async (bookmark: Omit<TerminalBookmark, 'id' | 'createdAt'>) => {
+        try {
+            await window.electronAPI.saveTerminalBookmark(bookmark)
+
+            // Reload bookmarks
+            if (connection?.profile.id) {
+                const bookmarks = await window.electronAPI.getTerminalBookmarks(connection.profile.id)
+                setTerminalBookmarks(bookmarks)
+            }
+
+            setAlertDialog({
+                isOpen: true,
+                message: 'Terminal bookmark saved successfully',
+                variant: 'success'
+            })
+        } catch (error) {
+            console.error('Failed to save terminal bookmark:', error)
+            setAlertDialog({
+                isOpen: true,
+                message: 'Failed to save terminal bookmark',
+                variant: 'error'
+            })
+        }
+    }
+
+    const handleShowBookmarks = (e: React.MouseEvent) => {
+        setBookmarkList({
+            isOpen: true,
+            x: e.clientX,
+            y: e.clientY
+        })
+    }
+
+    const handleSelectBookmark = (bookmark: TerminalBookmark) => {
+        if (xtermRef.current) {
+            // Send the command to the terminal
+            sendInputMutation.mutate({ connectionId, data: bookmark.command + '\n' })
+        }
+    }
+
+    const handleDeleteBookmark = async (id: string) => {
+        try {
+            await window.electronAPI.deleteTerminalBookmark(id)
+
+            // Reload bookmarks
+            if (connection?.profile.id) {
+                const bookmarks = await window.electronAPI.getTerminalBookmarks(connection.profile.id)
+                setTerminalBookmarks(bookmarks)
+            }
+
+            setAlertDialog({
+                isOpen: true,
+                message: 'Terminal bookmark deleted successfully',
+                variant: 'success'
+            })
+        } catch (error) {
+            console.error('Failed to delete terminal bookmark:', error)
+            setAlertDialog({
+                isOpen: true,
+                message: 'Failed to delete terminal bookmark',
+                variant: 'error'
+            })
+        }
+    }
+
     const handleRightClick = (event: MouseEvent, term: XTerm) => {
         // Create context menu
         const contextMenu = document.createElement('div')
@@ -219,6 +353,10 @@ export default function Terminal({ connectionId }: TerminalProps) {
         const pasteItem = document.createElement('button')
         pasteItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
         pasteItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>Paste'
+
+        const bookmarkItem = document.createElement('button')
+        bookmarkItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        bookmarkItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>Bookmark Command'
 
         // Add click handlers
         copyItem.addEventListener('click', async (e) => {
@@ -249,9 +387,21 @@ export default function Terminal({ connectionId }: TerminalProps) {
             }
         })
 
+        bookmarkItem.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const selection = term.getSelection()
+            setBookmarkDialog({
+                isOpen: true,
+                initialCommand: selection || '',
+                initialName: ''
+            })
+            document.body.removeChild(contextMenu)
+        })
+
         // Add items to menu
         contextMenu.appendChild(copyItem)
         contextMenu.appendChild(pasteItem)
+        contextMenu.appendChild(bookmarkItem)
 
         // Add menu to DOM
         document.body.appendChild(contextMenu)
@@ -300,12 +450,31 @@ export default function Terminal({ connectionId }: TerminalProps) {
                                 {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
                             </button>
                         ) : (
-                            <button
-                                onClick={handleClearTerminal}
-                                className="px-2 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-medium transition-colors"
-                            >
-                                Clear
-                            </button>
+                            <>
+                                <button
+                                    onClick={handleBookmarkCommand}
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    title="Bookmark Command"
+                                >
+                                    <BookmarkIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={handleShowBookmarks}
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    title="Show Bookmarks"
+                                >
+                                    <BookOpenIcon className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={handleClearTerminal}
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    title="Clear Terminal"
+                                >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -337,6 +506,28 @@ export default function Terminal({ connectionId }: TerminalProps) {
                     )}
                 </div>
             </div>
+
+            {/* Terminal Bookmark Dialog */}
+            <TerminalBookmarkDialog
+                isOpen={bookmarkDialog.isOpen}
+                onClose={() => setBookmarkDialog({ ...bookmarkDialog, isOpen: false })}
+                onSave={handleSaveBookmark}
+                profileId={connection?.profile.id || ''}
+                initialCommand={bookmarkDialog.initialCommand}
+                initialName={bookmarkDialog.initialName}
+            />
+
+            {/* Terminal Bookmark List */}
+            {bookmarkList.isOpen && (
+                <TerminalBookmarkList
+                    bookmarks={terminalBookmarks}
+                    onSelectBookmark={handleSelectBookmark}
+                    onDeleteBookmark={handleDeleteBookmark}
+                    onClose={() => setBookmarkList({ ...bookmarkList, isOpen: false })}
+                    x={bookmarkList.x}
+                    y={bookmarkList.y}
+                />
+            )}
         </>
     )
 }

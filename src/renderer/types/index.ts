@@ -93,3 +93,12 @@ export interface Bookmark {
   remotePath: string
   createdAt?: number
 }
+
+export interface TerminalBookmark {
+  id?: string
+  profileId: string
+  name: string
+  command: string
+  description?: string
+  createdAt?: number
+}

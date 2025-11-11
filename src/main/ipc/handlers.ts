@@ -44,6 +44,13 @@ const BookmarkSchema = z.object({
   remotePath: z.string(),
 })
 
+const TerminalBookmarkSchema = z.object({
+  profileId: z.string(),
+  name: z.string(),
+  command: z.string(),
+  description: z.string().optional(),
+})
+
 export function setupIpcHandlers() {
   // Connection handlers
   ipcMain.handle('connect-to-host', async (_, profile) => {
@@ -468,6 +475,56 @@ export function setupIpcHandlers() {
       return await db.getBookmark(id)
     } catch (error) {
       console.error('Get bookmark error:', error)
+      throw error
+    }
+  })
+
+  // Terminal bookmark handlers
+  ipcMain.handle('save-terminal-bookmark', async (_, bookmark) => {
+    try {
+      const validatedBookmark = TerminalBookmarkSchema.parse(bookmark)
+      
+      // Check if bookmark already exists
+      const exists = await db.terminalBookmarkExists(
+        validatedBookmark.profileId,
+        validatedBookmark.name,
+        validatedBookmark.command
+      )
+      
+      if (exists) {
+        throw new Error('Terminal bookmark already exists for this profile and command')
+      }
+      
+      return await db.saveTerminalBookmark(validatedBookmark)
+    } catch (error) {
+      console.error('Save terminal bookmark error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-terminal-bookmarks', async (_, profileId: string) => {
+    try {
+      return await db.getTerminalBookmarks(profileId)
+    } catch (error) {
+      console.error('Get terminal bookmarks error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('delete-terminal-bookmark', async (_, id: string) => {
+    try {
+      return await db.deleteTerminalBookmark(id)
+    } catch (error) {
+      console.error('Delete terminal bookmark error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-terminal-bookmark', async (_, id: string) => {
+    try {
+      return await db.getTerminalBookmark(id)
+    } catch (error) {
+      console.error('Get terminal bookmark error:', error)
       throw error
     }
   })
