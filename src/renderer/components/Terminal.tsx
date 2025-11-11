@@ -57,11 +57,8 @@ export default function Terminal({ connectionId }: TerminalProps) {
         // Open terminal in DOM
         term.open(terminalRef.current)
 
-        // Fit terminal to container size
-        setTimeout(() => {
-            fitAddon.fit()
-            console.log('[Terminal] Initial fit - cols:', term.cols, 'rows:', term.rows)
-        }, 0)
+        // Don't fit immediately - wait for the terminal to be visible
+        // The fit will happen when terminalState.isConnected becomes true
 
         // Handle user input
         term.onData((data: string) => {
@@ -82,11 +79,20 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
         console.log('[Terminal] Xterm instance created and opened')
 
+        // Handle terminal resize - notify backend when terminal dimensions change
+        term.onResize(({ cols, rows }) => {
+            console.log('[Terminal] Terminal resized - cols:', cols, 'rows:', rows)
+            // Notify backend about the new terminal size
+            window.electronAPI.resizeTerminal(connectionId, cols, rows)
+                .catch(error => console.error('[Terminal] Failed to notify backend of resize:', error))
+        })
+
         // Handle window resize
         const handleResize = () => {
             if (fitAddonRef.current && xtermRef.current) {
                 try {
                     fitAddonRef.current.fit()
+                    // The onResize event will be triggered automatically by xterm
                     // console.log('[Terminal] Resized - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
                 } catch (error) {
                     console.error('[Terminal] Error during resize:', error)
@@ -160,13 +166,20 @@ export default function Terminal({ connectionId }: TerminalProps) {
     useEffect(() => {
         if (terminalState.isConnected && xtermRef.current && fitAddonRef.current) {
             // console.log('[Terminal] Session opened, fitting terminal')
-            // Small delay to ensure the div is visible and has proper dimensions
-            setTimeout(() => {
-                if (fitAddonRef.current && xtermRef.current) {
-                    fitAddonRef.current.fit()
-                    console.log('[Terminal] Fitted after connection - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
-                }
-            }, 100)
+            // Use requestAnimationFrame to ensure the DOM has updated and the element is visible
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (fitAddonRef.current && xtermRef.current) {
+                        try {
+                            fitAddonRef.current.fit()
+                            console.log('[Terminal] Fitted after connection - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
+                            // The onResize event handler will automatically notify the backend
+                        } catch (error) {
+                            console.error('[Terminal] Error during fit after connection:', error)
+                        }
+                    }
+                })
+            })
         } else if (!terminalState.isConnected && xtermRef.current) {
             // console.log('[Terminal] Session closed, clearing terminal')
             xtermRef.current.clear()
@@ -299,18 +312,19 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
                 {/* Terminal Body */}
                 <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
-                    {/* Terminal container - always rendered */}
+                    {/* Terminal container - always rendered and sized, but hidden when not connected */}
                     <div
                         ref={terminalRef}
-                        className="w-full h-full"
+                        className="w-full h-full absolute inset-0"
                         style={{
-                            display: terminalState.isConnected ? 'block' : 'none'
+                            visibility: terminalState.isConnected ? 'visible' : 'hidden',
+                            zIndex: terminalState.isConnected ? 1 : 0
                         }}
                     />
 
                     {/* Not connected message */}
                     {!terminalState.isConnected && (
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-500" style={{ zIndex: 2 }}>
                             <div className="text-center">
                                 <div className="text-lg mb-2">Terminal not connected</div>
                                 <div className="text-sm">
