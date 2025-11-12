@@ -8,6 +8,7 @@ interface TerminalState {
     output: string[]
     isConnected: boolean
     error?: string
+    maxOutputLines: number // Maximum number of output lines to keep in memory
 }
 
 type TerminalAction =
@@ -20,6 +21,7 @@ type TerminalAction =
 const initialState: TerminalState = {
     output: [],
     isConnected: false,
+    maxOutputLines: 1000, // Keep last 1000 output chunks to prevent memory issues
 }
 
 function terminalReducer(state: TerminalState, action: TerminalAction): TerminalState {
@@ -29,10 +31,19 @@ function terminalReducer(state: TerminalState, action: TerminalAction): Terminal
             return { ...state, session: action.payload }
         case 'SET_OUTPUT':
             console.log('[TerminalReducer] SET_OUTPUT:', action.payload.length, 'items')
-            return { ...state, output: action.payload }
+            // Trim output if it exceeds maxOutputLines
+            const trimmedOutput = action.payload.length > state.maxOutputLines
+                ? action.payload.slice(-state.maxOutputLines)
+                : action.payload
+            return { ...state, output: trimmedOutput }
         case 'ADD_OUTPUT':
             console.log('[TerminalReducer] ADD_OUTPUT:', JSON.stringify(action.payload))
-            const newOutput = [...state.output, action.payload]
+            let newOutput = [...state.output, action.payload]
+            // Trim output if it exceeds maxOutputLines
+            if (newOutput.length > state.maxOutputLines) {
+                newOutput = newOutput.slice(-state.maxOutputLines)
+                console.log('[TerminalReducer] Output trimmed to max lines:', state.maxOutputLines)
+            }
             console.log('[TerminalReducer] New output array length:', newOutput.length)
             return { ...state, output: newOutput }
         case 'SET_CONNECTED':

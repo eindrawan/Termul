@@ -19,6 +19,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
     const xtermRef = useRef<XTerm | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
     const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
+    const lastProcessedIndexRef = useRef<number>(-1) // Track the last processed output index
     const { state: connectionState } = useConnection()
     const { state: terminalState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
 
@@ -142,32 +143,29 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
     // Handle terminal output
     useEffect(() => {
-        // console.log('[Terminal] Output effect triggered')
-        // console.log('[Terminal] xtermRef.current:', xtermRef.current)
-        // console.log('[Terminal] terminalState.output:', terminalState.output)
-
         if (!xtermRef.current) {
-            // console.log('[Terminal] No xterm instance, skipping output')
             return
         }
 
         const term = xtermRef.current
         const outputArray = terminalState.output
 
-        // console.log('[Terminal] Output changed, total items:', outputArray.length)
+        // Write only new output chunks that haven't been processed yet
+        const startIndex = lastProcessedIndexRef.current + 1
 
-        // Write the latest output
-        if (outputArray.length > 0) {
-            const latestOutput = outputArray[outputArray.length - 1]
-            // console.log('[Terminal] Writing output:', JSON.stringify(latestOutput))
-            try {
-                term.write(latestOutput)
-                // console.log('[Terminal] Output written successfully')
-            } catch (error) {
-                console.error('[Terminal] Error writing output:', error)
+        if (startIndex < outputArray.length) {
+            // Process all new output chunks
+            for (let i = startIndex; i < outputArray.length; i++) {
+                const outputChunk = outputArray[i]
+                try {
+                    term.write(outputChunk)
+                } catch (error) {
+                    console.error('[Terminal] Error writing output:', error)
+                }
             }
-        } else {
-            // console.log('[Terminal] No output to write')
+
+            // Update the last processed index
+            lastProcessedIndexRef.current = outputArray.length - 1
         }
     }, [terminalState.output])
 
@@ -202,6 +200,9 @@ export default function Terminal({ connectionId }: TerminalProps) {
     useEffect(() => {
         if (terminalState.isConnected && xtermRef.current && fitAddonRef.current) {
             // console.log('[Terminal] Session opened, fitting terminal')
+            // Reset the processed index when a new session starts
+            lastProcessedIndexRef.current = -1
+
             // Use requestAnimationFrame to ensure the DOM has updated and the element is visible
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
@@ -219,6 +220,8 @@ export default function Terminal({ connectionId }: TerminalProps) {
         } else if (!terminalState.isConnected && xtermRef.current) {
             // console.log('[Terminal] Session closed, clearing terminal')
             xtermRef.current.clear()
+            // Reset the processed index when terminal is cleared
+            lastProcessedIndexRef.current = -1
         }
     }, [terminalState.isConnected])
 
@@ -253,6 +256,8 @@ export default function Terminal({ connectionId }: TerminalProps) {
     const handleClearTerminal = () => {
         if (xtermRef.current) {
             xtermRef.current.clear()
+            // Don't reset the index here - we're only clearing the display, not the output history
+            // The output array in state remains unchanged
         }
     }
 
@@ -339,11 +344,29 @@ export default function Terminal({ connectionId }: TerminalProps) {
     }
 
     const handleRightClick = (event: MouseEvent, term: XTerm) => {
+        // Remove any existing context menus first
+        const existingMenus = document.querySelectorAll('.terminal-context-menu')
+        existingMenus.forEach(menu => {
+            if (document.body.contains(menu)) {
+                document.body.removeChild(menu)
+            }
+        })
+
+        // Adjust position if menu would go off screen
+        const menuWidth = 150
+        const menuHeight = 120 // Approximate height for 3 menu items
+        const adjustedX = event.clientX + menuWidth > window.innerWidth
+            ? window.innerWidth - menuWidth - 5
+            : event.clientX
+        const adjustedY = event.clientY + menuHeight > window.innerHeight
+            ? window.innerHeight - menuHeight - 5
+            : event.clientY
+
         // Create context menu
         const contextMenu = document.createElement('div')
-        contextMenu.className = 'fixed bg-gray-800 border border-gray-600 rounded-md shadow-lg py-1 z-50 min-w-[150px]'
-        contextMenu.style.left = `${event.clientX}px`
-        contextMenu.style.top = `${event.clientY}px`
+        contextMenu.className = 'terminal-context-menu fixed bg-gray-800 border border-gray-600 rounded-md shadow-lg py-1 z-50 min-w-[150px]'
+        contextMenu.style.left = `${adjustedX}px`
+        contextMenu.style.top = `${adjustedY}px`
 
         // Create menu items
         const copyItem = document.createElement('button')
@@ -498,7 +521,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
                                 <div className="text-lg mb-2">Terminal not connected</div>
                                 <div className="text-sm">
                                     {!isConnected
-                                        ? 'Connect to a host to open a terminal session'
+                                        ? 'Please connect to a host first'
                                         : 'Click "Open Terminal" to start a session'}
                                 </div>
                             </div>
@@ -507,25 +530,23 @@ export default function Terminal({ connectionId }: TerminalProps) {
                 </div>
             </div>
 
-            {/* Terminal Bookmark Dialog */}
             <TerminalBookmarkDialog
                 isOpen={bookmarkDialog.isOpen}
-                onClose={() => setBookmarkDialog({ ...bookmarkDialog, isOpen: false })}
-                onSave={handleSaveBookmark}
-                profileId={connection?.profile.id || ''}
                 initialCommand={bookmarkDialog.initialCommand}
                 initialName={bookmarkDialog.initialName}
+                profileId={connection?.profile.id || ''}
+                onSave={handleSaveBookmark}
+                onClose={() => setBookmarkDialog({ ...bookmarkDialog, isOpen: false })}
             />
 
-            {/* Terminal Bookmark List */}
             {bookmarkList.isOpen && (
                 <TerminalBookmarkList
+                    x={bookmarkList.x}
+                    y={bookmarkList.y}
                     bookmarks={terminalBookmarks}
                     onSelectBookmark={handleSelectBookmark}
                     onDeleteBookmark={handleDeleteBookmark}
                     onClose={() => setBookmarkList({ ...bookmarkList, isOpen: false })}
-                    x={bookmarkList.x}
-                    y={bookmarkList.y}
                 />
             )}
         </>

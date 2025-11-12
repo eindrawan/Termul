@@ -113,12 +113,42 @@ export class TerminalService {
   private setupShellStream(connectionId: string, shellStream: any, session: TerminalSession): void {
     if (!shellStream || !session) return
 
+    // Buffer to accumulate data chunks
+    let buffer = Buffer.alloc(0)
+    
     shellStream.on('data', (data: Buffer) => {
-      this.emitTerminalOutput(connectionId, data.toString())
+      // Accumulate data in buffer
+      buffer = Buffer.concat([buffer, data])
+      
+      // Process buffer when it reaches a reasonable size or after a timeout
+      if (buffer.length > 1024 || buffer.includes('\n'.charCodeAt(0))) {
+        this.emitTerminalOutput(connectionId, buffer.toString())
+        buffer = Buffer.alloc(0)
+      }
     })
+    
+    // Set up a timer to flush any remaining buffer data periodically
+    const flushInterval = setInterval(() => {
+      if (buffer.length > 0) {
+        this.emitTerminalOutput(connectionId, buffer.toString())
+        buffer = Buffer.alloc(0)
+      }
+    }, 100) // Flush every 100ms
 
+    // Handle stream close - combine both close handlers
     shellStream.on('close', () => {
       console.log('Terminal stream closed')
+
+      // Clear the flush interval
+      clearInterval(flushInterval)
+
+      // Flush any remaining data
+      if (buffer.length > 0) {
+        this.emitTerminalOutput(connectionId, buffer.toString())
+        buffer = Buffer.alloc(0)
+      }
+
+      // Update terminal session state
       const terminal = this.terminals.get(connectionId)
       if (terminal) {
         terminal.session.connected = false
