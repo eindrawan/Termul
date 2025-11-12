@@ -6,6 +6,9 @@ import { useTransfer } from '../contexts/TransferContext'
 import ProfileSidebar from './ProfileSidebar'
 import FileManager from './FileManager'
 import Terminal from './Terminal'
+import WindowList from './WindowList'
+import WindowRenderer from './WindowRenderer'
+import FileEditorManager from './FileEditorManager'
 
 export default function MainLayout() {
     const [activeTab, setActiveTab] = useState<TabType>('file-manager')
@@ -59,6 +62,12 @@ export default function MainLayout() {
 
     return (
         <div className="flex h-screen bg-gray-50">
+            {/* Window Renderer - renders all managed windows */}
+            <WindowRenderer />
+
+            {/* File Editor Manager - manages all file editors */}
+            <FileEditorManager />
+
             {/* Profile Sidebar */}
             <ProfileSidebar />
 
@@ -172,6 +181,7 @@ export default function MainLayout() {
                         ) : (
                             <span>Termul SSH Client v0.1.0</span>
                         )}
+                        <WindowList />
                     </div>
                 </div>
             </div>

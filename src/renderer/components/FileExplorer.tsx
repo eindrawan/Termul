@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { FileSystemEntry } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { useDeletion } from '../contexts/DeletionContext'
+import { openFileEditor } from './FileEditorManager'
 import ContextMenu from './ContextMenu'
-import FileEditor from './FileEditor'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
@@ -66,10 +66,6 @@ export default function FileExplorer({
         y: number
         file: FileSystemEntry | null
     } | null>(null)
-
-    // File editor state
-    const [editorFile, setEditorFile] = useState<FileSystemEntry | null>(null)
-    const [isEditorOpen, setIsEditorOpen] = useState(false)
 
     // Breadcrumb edit state
     const [isEditingPath, setIsEditingPath] = useState(false)
@@ -449,14 +445,8 @@ export default function FileExplorer({
     }
 
     const handleEdit = (file: FileSystemEntry) => {
-        setEditorFile(file)
-        setIsEditorOpen(true)
+        openFileEditor(file, connectionId, isLocal)
         handleContextMenuClose()
-    }
-
-    const handleEditorClose = () => {
-        setIsEditorOpen(false)
-        setEditorFile(null)
     }
 
     const handleBreadcrumbClick = (index: number) => {
@@ -897,15 +887,6 @@ export default function FileExplorer({
                         onRename={handleRename}
                     />
                 )}
-
-                {/* File Editor */}
-                <FileEditor
-                    file={editorFile}
-                    isOpen={isEditorOpen}
-                    onClose={handleEditorClose}
-                    connectionId={connectionId}
-                    isLocal={isLocal}
-                />
 
                 {/* Name Input Dialog */}
                 <NameInputDialog
