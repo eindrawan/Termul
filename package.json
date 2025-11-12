@@ -8,10 +8,11 @@
         "dev": "npm run copy:workers && npm run build:preload && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
         "dev:vite": "vite",
         "dev:electron": "wait-on http://localhost:5273 && electron .",
-        "build": "npm run build:renderer && npm run build:main && npm run copy:workers && npm run build:preload",
+        "build": "npm run build:renderer && npm run build:main && npm run copy:workers && npm run copy:assets && npm run build:preload",
         "build:renderer": "vite build",
         "build:main": "tsc -p tsconfig.main.json",
         "copy:workers": "if not exist dist\\main\\workers mkdir dist\\main\\workers && copy src\\main\\workers\\*.js dist\\main\\workers\\",
+        "copy:assets": "if not exist dist\\assets mkdir dist\\assets && copy src\\assets\\icon.png dist\\assets\\",
         "build:preload": "tsc -p tsconfig.preload.json",
         "dist": "npm run build && npx electron-builder",
         "dist:win": "npm run build && npx electron-builder --win",
@@ -57,14 +58,16 @@
     "dependencies": {
         "@headlessui/react": "^1.7.17",
         "@heroicons/react": "^2.0.18",
+        "@monaco-editor/react": "^4.7.0",
         "@tanstack/react-query": "^5.14.2",
         "@xterm/addon-fit": "^0.10.0",
         "@xterm/addon-web-links": "^0.11.0",
         "@xterm/xterm": "^5.3.0",
-        "better-sqlite3": "^9.6.0",
+        "better-sqlite3": "^12.4.1",
         "chokidar": "^3.5.3",
         "electron-store": "^8.1.0",
         "keytar": "^7.9.0",
+        "monaco-editor": "^0.54.0",
         "node-pty": "1.0.0",
         "node-ssh": "^13.2.0",
         "ppk-to-openssh": "^3.2.0",
@@ -87,6 +90,7 @@
         "files": [
             "dist/**/*",
             "src/main/workers/*.js",
+            "src/assets/icon.png",
             "node_modules/**/*"
         ],
         "nodeGypRebuild": false,
@@ -106,7 +110,8 @@
                     ]
                 }
             ],
-            "sign": null
+            "sign": null,
+            "icon": "src/assets/icon.png"
         },
         "nsis": {
             "oneClick": false,

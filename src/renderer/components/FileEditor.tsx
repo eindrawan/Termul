@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { FileSystemEntry } from '../types'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import DraggableWindow from './DraggableWindow'
 import ConfirmDialog from './ConfirmDialog'
+import Editor from '@monaco-editor/react'
 
 interface FileEditorProps {
     file: FileSystemEntry | null
@@ -25,6 +26,9 @@ export default function FileEditor({
     const [isSaving, setIsSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+    const [language, setLanguage] = useState('plaintext')
+    const [theme, setTheme] = useState('vs')
+    const editorRef = useRef<any>(null)
 
     // Load file content when editor opens
     useEffect(() => {
@@ -32,6 +36,94 @@ export default function FileEditor({
             loadFileContent()
         }
     }, [isOpen, file, isLocal, connectionId])
+
+    // Detect language based on file extension
+    useEffect(() => {
+        if (file && file.type === 'file') {
+            const extension = file.path.split('.').pop()?.toLowerCase()
+            const detectedLanguage = getLanguageFromExtension(extension || '')
+            setLanguage(detectedLanguage)
+        }
+    }, [file])
+
+    // Function to map file extensions to Monaco language IDs
+    const getLanguageFromExtension = (extension: string): string => {
+        const languageMap: { [key: string]: string } = {
+            // Web technologies
+            'js': 'javascript',
+            'jsx': 'javascript',
+            'ts': 'typescript',
+            'tsx': 'typescript',
+            'html': 'html',
+            'htm': 'html',
+            'css': 'css',
+            'scss': 'scss',
+            'sass': 'sass',
+            'less': 'less',
+            'json': 'json',
+            'xml': 'xml',
+
+            // Programming languages
+            'py': 'python',
+            'java': 'java',
+            'c': 'c',
+            'cpp': 'cpp',
+            'cc': 'cpp',
+            'cxx': 'cpp',
+            'h': 'c',
+            'hpp': 'cpp',
+            'cs': 'csharp',
+            'php': 'php',
+            'rb': 'ruby',
+            'go': 'go',
+            'rs': 'rust',
+            'swift': 'swift',
+            'kt': 'kotlin',
+            'scala': 'scala',
+            'dart': 'dart',
+
+            // Configuration and data files
+            'yml': 'yaml',
+            'yaml': 'yaml',
+            'toml': 'toml',
+            'ini': 'ini',
+            'sql': 'sql',
+            'sh': 'shell',
+            'bash': 'shell',
+            'zsh': 'shell',
+            'fish': 'shell',
+            'ps1': 'powershell',
+            'bat': 'batch',
+            'cmd': 'batch',
+
+            // Documentation
+            'md': 'markdown',
+            'markdown': 'markdown',
+            'txt': 'plaintext',
+            'log': 'plaintext',
+
+            // Other
+            'dockerfile': 'dockerfile',
+            'gitignore': 'plaintext',
+            'env': 'plaintext',
+        }
+
+        return languageMap[extension] || 'plaintext'
+    }
+
+    // Handle editor mount
+    const handleEditorDidMount = (editor: any, monaco: any) => {
+        editorRef.current = editor
+
+        // Configure editor options
+        editor.updateOptions({
+            wordWrap: 'on',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+        })
+    }
 
     const loadFileContent = async () => {
         if (!file) return
@@ -131,29 +223,71 @@ export default function FileEditor({
                     )}
 
                     {/* Content */}
-                    <div className="flex-1 p-4 overflow-hidden">
+                    <div className="flex-1 p-0 overflow-hidden">
                         {isLoading ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
                                 <span className="ml-2">Loading file...</span>
                             </div>
                         ) : (
-                            <textarea
+                            <Editor
+                                height="100%"
+                                language={language}
                                 value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                className="w-full h-full p-2 border border-gray-300 rounded font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                placeholder="File content will appear here..."
-                                spellCheck={false}
+                                onChange={(value) => setContent(value || '')}
+                                onMount={handleEditorDidMount}
+                                theme={theme}
+                                options={{
+                                    selectOnLineNumbers: true,
+                                    automaticLayout: true,
+                                    wordWrap: 'on',
+                                    minimap: { enabled: false },
+                                    scrollBeyondLastLine: false,
+                                    fontSize: 14,
+                                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                                    renderLineHighlight: 'line',
+                                    scrollbar: {
+                                        vertical: 'auto',
+                                        horizontal: 'auto',
+                                        useShadows: false,
+                                        verticalHasArrows: false,
+                                        horizontalHasArrows: false,
+                                    },
+                                }}
+                                loading={
+                                    <div className="flex items-center justify-center h-full">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                                        <span className="ml-2">Loading editor...</span>
+                                    </div>
+                                }
                             />
                         )}
                     </div>
 
                     {/* Footer */}
                     <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                        <div className="text-sm text-gray-600">
-                            {content !== originalContent && (
-                                <span className="text-orange-600">● Unsaved changes</span>
-                            )}
+                        <div className="flex items-center space-x-4">
+                            <div className="text-sm text-gray-600">
+                                {content !== originalContent && (
+                                    <span className="text-orange-600">● Unsaved changes</span>
+                                )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <label htmlFor="theme-select" className="text-sm text-gray-600">Theme:</label>
+                                <select
+                                    id="theme-select"
+                                    value={theme}
+                                    onChange={(e) => setTheme(e.target.value)}
+                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                >
+                                    <option value="vs">Light</option>
+                                    <option value="vs-dark">Dark</option>
+                                    <option value="hc-black">High Contrast</option>
+                                </select>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                                Language: <span className="font-medium">{language}</span>
+                            </div>
                         </div>
                         <div className="flex space-x-2">
                             <button

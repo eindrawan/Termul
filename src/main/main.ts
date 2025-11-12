@@ -29,6 +29,9 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    icon: process.env.NODE_ENV === 'development'
+      ? join(__dirname, '../../assets/icon.png')
+      : join(__dirname, '../assets/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       sandbox: false,
