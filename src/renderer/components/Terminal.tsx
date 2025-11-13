@@ -110,6 +110,10 @@ export default function Terminal({ connectionId }: TerminalProps) {
             if (fitAddonRef.current && xtermRef.current) {
                 try {
                     fitAddonRef.current.fit()
+
+                    setTimeout(() => {
+                        if (fitAddonRef.current && xtermRef.current) fitAddonRef.current.fit()
+                    }, 1000)
                     // The onResize event will be triggered automatically by xterm
                     // console.log('[Terminal] Resized - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
                 } catch (error) {
