@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { ConnectionProfile } from '../types'
 import ManageProfilesDialog from './ManageProfilesDialog'
+import SettingsMenu from './SettingsMenu'
 import { PlusIcon, ServerIcon, PencilIcon } from '@heroicons/react/24/outline'
 
 export default function ProfileSidebar() {
@@ -79,9 +80,9 @@ export default function ProfileSidebar() {
 
     return (
         <>
-            <div className="flex flex-col h-full w-64 bg-gray-800 text-white border-r border-gray-700">
+            <div className="flex flex-col h-full w-64 bg-gray-100 text-gray-900 border-r border-gray-200 dark:bg-gray-800 dark:text-white dark:border-gray-700">
                 {/* Header with Create Button */}
-                <div className="p-4 border-b border-gray-700">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <button
                         onClick={handleCreateProfile}
                         className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
@@ -108,10 +109,10 @@ export default function ProfileSidebar() {
                                             onClick={() => handleConnect(profile)}
                                             disabled={state.isLoading && !isProfileActive(profile)}
                                             className={`w-full text-left p-3 rounded-md transition-colors ${isProfileConnected(profile) && isProfileActive(profile)
-                                                ? 'bg-primary-600 text-white border-2 border-primary-700'
+                                                ? 'bg-primary-600 text-white border-2 border-primary-700 dark:border-primary-500'
                                                 : isProfileConnected(profile) && !isProfileActive(profile)
-                                                    ? 'text-white border-2 border-primary-600'
-                                                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                                    ? 'text-primary-600 border-2 border-primary-600 dark:text-white dark:border-primary-500'
+                                                    : 'text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700'
                                                 } ${state.isLoading && !isProfileActive(profile)
                                                     ? 'opacity-50 cursor-not-allowed'
                                                     : ''
@@ -121,9 +122,9 @@ export default function ProfileSidebar() {
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center space-x-2">
                                                         {connectingProfileId === profile.id ? (
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 dark:border-white"></div>
                                                         ) : (
-                                                            <ServerIcon className="h-4 w-4 flex-shrink-0" />
+                                                            <ServerIcon className="h-4 w-4 flex-shrink-0 text-gray-600 dark:text-white" />
                                                         )}
                                                         <div className="font-medium truncate">{profile.name}</div>
                                                     </div>
@@ -137,23 +138,23 @@ export default function ProfileSidebar() {
                                                 <div className="flex items-center space-x-1">
                                                     <button
                                                         onClick={(e) => handleEditProfile(profile, e)}
-                                                        className="p-1 rounded hover:bg-gray-600 transition-colors"
+                                                        className="p-1 rounded hover:bg-gray-200 transition-colors dark:hover:bg-gray-700"
                                                         title="Edit Profile"
                                                     >
-                                                        <PencilIcon className="h-4 w-4 text-gray-300 hover:text-white" />
+                                                        <PencilIcon className="h-4 w-4 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white" />
                                                     </button>
                                                 </div>
                                             </div>
                                             {isProfileConnected(profile) && (
                                                 <div className="mt-2 text-xs flex items-center justify-between">
                                                     <div className="flex items-center space-x-1">
-                                                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                                        <span>{isProfileActive(profile) ? 'Active' : 'Connected'}</span>
+                                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse dark:bg-green-400"></div>
+                                                        <span className="text-gray-700 dark:text-gray-300">{isProfileActive(profile) ? 'Active' : 'Connected'}</span>
                                                     </div>
                                                     {connection && (
                                                         <button
                                                             onClick={(e) => handleDisconnect(connection.id, e)}
-                                                            className="text-xs px-2 py-0.5 bg-red-500 hover:bg-red-600 rounded"
+                                                            className="text-xs px-2 py-0.5 bg-red-500 hover:bg-red-600 rounded dark:bg-red-600 dark:hover:bg-red-700"
                                                         >
                                                             Disconnect
                                                         </button>
@@ -168,10 +169,13 @@ export default function ProfileSidebar() {
                     )}
                 </div>
 
-                {/* Footer with Status */}
-                <div className="p-3 border-t border-gray-700 text-xs">
-                    <div className="text-gray-400">
-                        {state.profiles.length} {state.profiles.length === 1 ? 'profile' : 'profiles'}
+                {/* Footer with Status and Settings */}
+                <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between">
+                        <div className="text-gray-500 text-xs dark:text-gray-400">
+                            {state.profiles.length} {state.profiles.length === 1 ? 'profile' : 'profiles'}
+                        </div>
+                        <SettingsMenu />
                     </div>
                 </div>
             </div>

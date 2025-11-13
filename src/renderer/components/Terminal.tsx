@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
+import { useTheme } from '../contexts/ThemeContext'
 import AlertDialog from './AlertDialog'
 import TerminalBookmarkDialog from './TerminalBookmarkDialog'
 import TerminalBookmarkList from './TerminalBookmarkList'
@@ -22,6 +23,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
     const lastProcessedIndexRef = useRef<number>(-1) // Track the last processed output index
     const { state: connectionState } = useConnection()
     const { state: terminalState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
+    const { theme } = useTheme()
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
@@ -46,6 +48,34 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
     const [terminalBookmarks, setTerminalBookmarks] = useState<TerminalBookmark[]>([])
 
+    // Update terminal theme when theme changes
+    useEffect(() => {
+        if (xtermRef.current) {
+            const isDark = theme === 'dark'
+            xtermRef.current.options.theme = {
+                background: isDark ? '#000000' : '#ffffff',
+                foreground: isDark ? '#ffffff' : '#000000',
+                cursor: isDark ? '#ffffff' : '#000000',
+                black: isDark ? '#000000' : '#000000',
+                red: isDark ? '#cd3131' : '#cd3131',
+                green: isDark ? '#0dbc79' : '#0dbc79',
+                yellow: isDark ? '#e5e510' : '#e5e510',
+                blue: isDark ? '#2472c8' : '#2472c8',
+                magenta: isDark ? '#bc3fbc' : '#bc3fbc',
+                cyan: isDark ? '#11a8cd' : '#11a8cd',
+                white: isDark ? '#e5e5e5' : '#e5e5e5',
+                brightBlack: isDark ? '#666666' : '#666666',
+                brightRed: isDark ? '#f14c4c' : '#f14c4c',
+                brightGreen: isDark ? '#23d18b' : '#23d18b',
+                brightYellow: isDark ? '#f5f543' : '#f5f543',
+                brightBlue: isDark ? '#3b8eea' : '#3b8eea',
+                brightMagenta: isDark ? '#d670d6' : '#d670d6',
+                brightCyan: isDark ? '#29b8db' : '#29b8db',
+                brightWhite: isDark ? '#e5e5e5' : '#e5e5e5',
+            }
+        }
+    }, [theme])
+
     // Initialize xterm when component mounts
     useEffect(() => {
         if (!terminalRef.current || xtermRef.current) return
@@ -58,9 +88,9 @@ export default function Terminal({ connectionId }: TerminalProps) {
             fontSize: 14,
             fontFamily: 'JetBrains Mono, monospace',
             theme: {
-                background: '#1e1e1e',
-                foreground: '#d4d4d4',
-                cursor: '#ffffff',
+                background: theme === 'dark' ? '#000000' : '#ffffff',
+                foreground: theme === 'dark' ? '#ffffff' : '#000000',
+                cursor: theme === 'dark' ? '#ffffff' : '#000000',
             },
         })
 
@@ -368,21 +398,22 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
         // Create context menu
         const contextMenu = document.createElement('div')
-        contextMenu.className = 'terminal-context-menu fixed bg-gray-800 border border-gray-600 rounded-md shadow-lg py-1 z-50 min-w-[150px]'
+        const isDark = document.documentElement.classList.contains('dark')
+        contextMenu.className = `terminal-context-menu fixed ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-md shadow-lg py-1 z-50 min-w-[150px]`
         contextMenu.style.left = `${adjustedX}px`
         contextMenu.style.top = `${adjustedY}px`
 
         // Create menu items
         const copyItem = document.createElement('button')
-        copyItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        copyItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
         copyItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>Copy'
 
         const pasteItem = document.createElement('button')
-        pasteItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        pasteItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
         pasteItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>Paste'
 
         const bookmarkItem = document.createElement('button')
-        bookmarkItem.className = 'w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 flex items-center'
+        bookmarkItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
         bookmarkItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>Bookmark Command'
 
         // Add click handlers
@@ -456,13 +487,13 @@ export default function Terminal({ connectionId }: TerminalProps) {
                 onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
             />
 
-            <div className="flex flex-col h-full bg-gray-900">
+            <div className="flex flex-col h-full bg-white dark:bg-gray-900">
                 {/* Terminal Header */}
-                <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 dark:bg-gray-800 dark:border-gray-600">
                     <div className="flex items-center space-x-4">
-                        <h3 className="text-white font-medium">Terminal</h3>
+                        <h3 className="text-gray-900 font-medium dark:text-gray-100">Terminal</h3>
                         {terminalState.session?.host && (
-                            <span className="text-gray-400 text-sm">
+                            <span className="text-gray-500 text-sm dark:text-gray-300">
                                 {terminalState.session.username || connection?.profile.username}@{terminalState.session.host}
                             </span>
                         )}
@@ -472,7 +503,7 @@ export default function Terminal({ connectionId }: TerminalProps) {
                             <button
                                 onClick={handleOpenTerminal}
                                 disabled={openMutation.isLoading}
-                                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none text-sm font-medium transition-colors"
+                                className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none text-sm font-medium transition-colors dark:bg-blue-700 dark:hover:bg-blue-800"
                             >
                                 {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
                             </button>
@@ -480,21 +511,21 @@ export default function Terminal({ connectionId }: TerminalProps) {
                             <>
                                 <button
                                     onClick={handleBookmarkCommand}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                                     title="Bookmark Command"
                                 >
                                     <BookmarkIcon className="h-4 w-4" />
                                 </button>
                                 <button
                                     onClick={handleShowBookmarks}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                                     title="Show Bookmarks"
                                 >
                                     <BookOpenIcon className="h-4 w-4" />
                                 </button>
                                 <button
                                     onClick={handleClearTerminal}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                                     title="Clear Terminal"
                                 >
                                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

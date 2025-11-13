@@ -5,6 +5,7 @@ import { TransferProvider } from './contexts/TransferContext'
 import { TerminalProvider } from './contexts/TerminalContext'
 import { DeletionProvider } from './contexts/DeletionContext'
 import { WindowManagerProvider } from './contexts/WindowManagerContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import MainLayout from './components/MainLayout'
 
 const queryClient = new QueryClient({
@@ -19,17 +20,19 @@ const queryClient = new QueryClient({
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <ConnectionProvider>
-                <TransferProvider>
-                    <TerminalProvider>
-                        <DeletionProvider>
-                            <WindowManagerProvider>
-                                <MainLayout />
-                            </WindowManagerProvider>
-                        </DeletionProvider>
-                    </TerminalProvider>
-                </TransferProvider>
-            </ConnectionProvider>
+            <ThemeProvider>
+                <ConnectionProvider>
+                    <TransferProvider>
+                        <TerminalProvider>
+                            <DeletionProvider>
+                                <WindowManagerProvider>
+                                    <MainLayout />
+                                </WindowManagerProvider>
+                            </DeletionProvider>
+                        </TerminalProvider>
+                    </TransferProvider>
+                </ConnectionProvider>
+            </ThemeProvider>
         </QueryClientProvider>
     )
 }
