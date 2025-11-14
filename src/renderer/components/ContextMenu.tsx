@@ -266,7 +266,7 @@ export default function ContextMenu({
 
             <div
                 ref={menuRef}
-                className="fixed bg-white border border-gray-300 rounded-md shadow-lg py-1 z-50 min-w-[150px]"
+                className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg py-1 z-50 min-w-[150px]"
                 style={{ left: adjustedX, top: adjustedY }}
             >
                 {selectedFiles.length > 1 ? (
@@ -274,7 +274,7 @@ export default function ContextMenu({
                         {isLocal && (
                             <button
                                 onClick={handleBulkUpload}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                             >
                                 <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
                                 Upload ({selectedFiles.length})
@@ -283,7 +283,7 @@ export default function ContextMenu({
                         {!isLocal && connectionId && (
                             <button
                                 onClick={handleBulkDownload}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                             >
                                 <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                                 Download ({selectedFiles.length})
@@ -297,7 +297,7 @@ export default function ContextMenu({
                                 // Don't call onClose() here - let the dialog handle closing
                                 return false
                             }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-red-600 dark:text-red-400"
                         >
                             <TrashIcon className="mr-2 h-4 w-4" />
                             Delete ({selectedFiles.length})
@@ -308,7 +308,7 @@ export default function ContextMenu({
                         {isLocal && (
                             <button
                                 onClick={handleUpload}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                             >
                                 <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
                                 Upload
@@ -317,7 +317,7 @@ export default function ContextMenu({
                         {!isLocal && connectionId && (
                             <button
                                 onClick={handleDownload}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                             >
                                 <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
                                 Download
@@ -326,7 +326,7 @@ export default function ContextMenu({
                         {file.type === 'file' && (
                             <button
                                 onClick={handleEdit}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                             >
                                 <PencilIcon className="mr-2 h-4 w-4" />
                                 Edit
@@ -337,14 +337,14 @@ export default function ContextMenu({
                                 onRename(file)
                                 onClose()
                             }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                         >
                             <AtSymbolIcon className="mr-2 h-4 w-4 italic" />
                             Rename
                         </button>
                         <button
                             onClick={handleDelete}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center text-red-600"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-red-600 dark:text-red-400"
                         >
                             <TrashIcon className="mr-2 h-4 w-4" />
                             Delete
@@ -357,7 +357,7 @@ export default function ContextMenu({
                                 onCreateFolder()
                                 onClose()
                             }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                         >
                             <FolderIcon className="mr-2 h-4 w-4" />
                             New Folder
@@ -367,7 +367,7 @@ export default function ContextMenu({
                                 onCreateFile()
                                 onClose()
                             }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
                         >
                             <DocumentIcon className="mr-2 h-4 w-4" />
                             New File

@@ -131,21 +131,21 @@ export default function Window({
 
     return (
         <div
-            className={`bg-white shadow-2xl flex flex-col overflow-hidden rounded-lg transition-shadow ${isFocused ? 'ring-2 ring-gray-800' : 'ring-1 ring-gray-300'
+            className={`bg-white dark:bg-gray-800 shadow-2xl flex flex-col overflow-hidden rounded-lg transition-shadow ${isFocused ? 'ring-2 ring-gray-800 dark:ring-gray-400' : 'ring-1 ring-gray-300 dark:ring-gray-600'
                 }`}
             style={windowStyle}
             onClick={handleWindowClick}
         >
             {/* Title Bar */}
             <div
-                className={`flex items-center justify-between px-3 py-1.5 cursor-move border-b select-none ${isFocused ? 'bg-gray-800 text-white border-blue-700' : 'bg-gray-100 text-gray-700 border-gray-200'
+                className={`flex items-center justify-between px-3 py-1.5 cursor-move border-b select-none ${isFocused ? 'bg-gray-800 text-white border-blue-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600'
                     }`}
                 onMouseDown={handleMouseDown}
             >
                 <div className="flex-1 min-w-0 flex items-center space-x-2">
                     <div className="font-medium text-xs truncate">{title}</div>
                     {subtitle && (
-                        <div className={`text-xs truncate ${isFocused ? 'text-blue-100' : 'text-gray-500'}`}>
+                        <div className={`text-xs truncate ${isFocused ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
                             {subtitle}
                         </div>
                     )}
@@ -158,7 +158,7 @@ export default function Window({
                         }}
                         className={`p-1 rounded transition-colors ${isFocused
                             ? 'hover:bg-blue-500'
-                            : 'hover:bg-gray-200'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                         title="Minimize"
                     >
@@ -171,7 +171,7 @@ export default function Window({
                         }}
                         className={`p-1 rounded transition-colors ${isFocused
                             ? 'hover:bg-blue-500'
-                            : 'hover:bg-gray-200'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                         title={windowConfig.state === 'maximized' ? "Restore" : "Maximize"}
                     >
@@ -200,7 +200,7 @@ export default function Window({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-hidden bg-white">
+            <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900">
                 {children}
             </div>
 
@@ -210,7 +210,7 @@ export default function Window({
                     className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize group"
                     onMouseDown={handleResizeMouseDown}
                 >
-                    <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-gray-400 group-hover:border-blue-500"></div>
+                    <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-gray-400 dark:border-gray-500 group-hover:border-blue-500 dark:group-hover:border-blue-400"></div>
                 </div>
             )}
         </div>

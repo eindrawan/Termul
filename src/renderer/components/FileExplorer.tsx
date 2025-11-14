@@ -2,8 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { FileSystemEntry } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { useDeletion } from '../contexts/DeletionContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { openFileEditor } from './FileEditorManager'
 import ContextMenu from './ContextMenu'
+import {
+    DocumentPlusIcon,
+    FolderPlusIcon,
+    ArrowPathIcon
+} from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
@@ -41,6 +47,8 @@ export default function FileExplorer({
     const [files, setFiles] = useState<FileSystemEntry[]>([])
     const [sortField, setSortField] = useState<SortField>('name')
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const { theme } = useTheme()
     const { startDeletion, updateDeletionProgress, finishDeletion } = useDeletion()
     const [columnWidths, setColumnWidths] = useState({
         name: 40, // percentage
@@ -694,13 +702,43 @@ export default function FileExplorer({
 
             <div className={`flex flex-col h-full file-explorer-container ${disabled ? 'opacity-50' : ''}`}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
+                <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
                     <h3 className="font-medium">{title}</h3>
-                    <div className="text-sm text-gray-600">{path}</div>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={handleCreateFile}
+                            className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 dark:text-green-400 rounded transition-colors"
+                            title="New File"
+                        >
+                            <DocumentPlusIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={handleCreateFolder}
+                            className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 dark:text-blue-400 rounded transition-colors"
+                            title="New Folder"
+                        >
+                            <FolderPlusIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={async () => {
+                                setIsRefreshing(true)
+                                try {
+                                    await refetch()
+                                } finally {
+                                    setIsRefreshing(false)
+                                }
+                            }}
+                            className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 dark:text-gray-400 rounded transition-colors"
+                            title="Refresh"
+                            disabled={isLoading || isRefreshing}
+                        >
+                            <ArrowPathIcon className={`w-5 h-5 ${(isLoading || isRefreshing) ? 'animate-spin' : ''}`} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Breadcrumb Navigation */}
-                <div className="flex items-center p-2 bg-white border-b text-sm">
+                <div className="flex items-center p-2 bg-white dark:bg-gray-900 border-b dark:border-gray-700 text-sm">
                     {isEditingPath ? (
                         <input
                             type="text"
@@ -708,7 +746,7 @@ export default function FileExplorer({
                             onChange={(e) => setEditingPath(e.target.value)}
                             onKeyDown={handlePathEditKeyDown}
                             onBlur={handlePathEditSubmit}
-                            className="flex-1 px-2 py-1 text-sm border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 px-2 py-1 text-sm border border-blue-400 dark:border-blue-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                             autoFocus
                         />
                     ) : (
@@ -722,13 +760,13 @@ export default function FileExplorer({
                                     <button
                                         onClick={() => handleBreadcrumbClick(index)}
                                         disabled={crumb.isLast}
-                                        className={`hover:text-primary-600 ${crumb.isLast ? 'font-medium text-gray-900' : 'text-gray-600'
+                                        className={`hover:text-primary-600 dark:hover:text-primary-400 ${crumb.isLast ? 'font-medium text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'
                                             }`}
                                     >
                                         {crumb.name}
                                     </button>
                                     {!crumb.isLast && (
-                                        <span className="mx-1 text-gray-400">
+                                        <span className="mx-1 text-gray-400 dark:text-gray-500">
                                             {isLocal ? '\\' : '/'}
                                         </span>
                                     )}
@@ -771,7 +809,7 @@ export default function FileExplorer({
                                 className="file-table w-full"
                                 onMouseDown={handleTableMouseDown}
                             >
-                                <thead className="bg-gray-50 sticky top-0">
+                                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                                     <tr>
                                         <th
                                             className="sortable-header text-left relative"
@@ -829,7 +867,7 @@ export default function FileExplorer({
                                 >
                                     {sortedFiles.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="text-center py-4 text-gray-500">
+                                            <td colSpan={4} className="text-center py-4 text-gray-500 dark:text-gray-400">
                                                 No files found
                                             </td>
                                         </tr>

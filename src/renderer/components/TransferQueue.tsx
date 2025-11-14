@@ -62,19 +62,19 @@ export default function TransferQueue() {
     const getStatusColor = (status: TransferItem['status']) => {
         switch (status) {
             case 'pending':
-                return 'text-gray-600'
+                return 'text-gray-600 dark:text-gray-400'
             case 'active':
-                return 'text-blue-600'
+                return 'text-blue-600 dark:text-blue-400'
             case 'paused':
-                return 'text-yellow-600'
+                return 'text-yellow-600 dark:text-yellow-400'
             case 'completed':
-                return 'text-green-600'
+                return 'text-green-600 dark:text-green-400'
             case 'failed':
-                return 'text-red-600'
+                return 'text-red-600 dark:text-red-400'
             case 'cancelled':
-                return 'text-gray-500'
+                return 'text-gray-500 dark:text-gray-400'
             default:
-                return 'text-gray-600'
+                return 'text-gray-600 dark:text-gray-400'
         }
     }
 
@@ -97,16 +97,16 @@ export default function TransferQueue() {
     return (
         <div className="flex flex-col h-full">
             {/* Header with filters */}
-            <div className="flex items-center justify-between p-4 bg-white border-b">
-                <h2 className="text-lg font-semibold">Transfer Queue</h2>
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+                <h2 className="text-lg font-semibold dark:text-gray-100">Transfer Queue</h2>
                 <div className="flex space-x-2">
                     {(['all', 'active', 'completed'] as const).map((filterOption) => (
                         <button
                             key={filterOption}
                             onClick={() => setFilter(filterOption)}
                             className={`px-3 py-1 rounded-md text-sm ${filter === filterOption
-                                    ? 'bg-primary-100 text-primary-700'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                 }`}
                         >
                             {filterOption.charAt(0).toUpperCase() + filterOption.slice(1)} ({filterOption === 'all' ? state.queue.length : filterOption === 'active' ? state.activeTransfers.length : state.completedTransfers.length})
@@ -118,11 +118,11 @@ export default function TransferQueue() {
             {/* Transfer list */}
             <div className="flex-1 overflow-auto">
                 {filteredTransfers.length === 0 ? (
-                    <div className="flex items-center justify-center h-32 text-gray-500">
+                    <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
                         No transfers {filter !== 'all' && `in ${filter} state`}
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredTransfers.map((transfer) => (
                             <div key={transfer.id} className="transfer-item">
                                 <div className="flex items-center space-x-3">
@@ -133,16 +133,16 @@ export default function TransferQueue() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
                                             <div className="truncate">
-                                                <div className="font-medium text-sm">
+                                                <div className="font-medium text-sm dark:text-gray-100">
                                                     {transfer.direction === 'upload' ? '↑' : '↓'} {transfer.sourcePath.split(/[/\\]/).pop()}
                                                 </div>
-                                                <div className="text-xs text-gray-500 truncate">
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                     {transfer.sourcePath} → {transfer.destinationPath}
                                                 </div>
                                             </div>
-                                            <div className="text-right text-sm">
+                                            <div className="text-right text-sm dark:text-gray-100">
                                                 <div>{formatSpeed(transfer.speed)}</div>
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
                                                     {transfer.progress.toFixed(1)}% • {formatTime(transfer.eta)}
                                                 </div>
                                             </div>
@@ -150,12 +150,12 @@ export default function TransferQueue() {
 
                                         {/* Progress bar */}
                                         <div className="mt-1">
-                                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                                                 <div
                                                     className={`h-1.5 rounded-full ${transfer.status === 'completed' ? 'bg-green-500' :
-                                                            transfer.status === 'failed' ? 'bg-red-500' :
-                                                                transfer.status === 'cancelled' ? 'bg-gray-500' :
-                                                                    'bg-blue-500'
+                                                        transfer.status === 'failed' ? 'bg-red-500' :
+                                                            transfer.status === 'cancelled' ? 'bg-gray-500' :
+                                                                'bg-blue-500'
                                                         }`}
                                                     style={{ width: `${transfer.progress}%` }}
                                                 ></div>
@@ -163,7 +163,7 @@ export default function TransferQueue() {
                                         </div>
 
                                         {transfer.error && (
-                                            <div className="text-xs text-red-600 mt-1">
+                                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
                                                 Error: {transfer.error}
                                             </div>
                                         )}
@@ -174,7 +174,7 @@ export default function TransferQueue() {
                                         {transfer.status === 'active' && (
                                             <button
                                                 onClick={() => handleAction(transfer, 'pause')}
-                                                className="btn btn-ghost text-xs"
+                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
                                                 title="Pause"
                                             >
                                                 ⏸️
@@ -183,7 +183,7 @@ export default function TransferQueue() {
                                         {transfer.status === 'paused' && (
                                             <button
                                                 onClick={() => handleAction(transfer, 'resume')}
-                                                className="btn btn-ghost text-xs"
+                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
                                                 title="Resume"
                                             >
                                                 ▶️
@@ -192,7 +192,7 @@ export default function TransferQueue() {
                                         {(transfer.status === 'active' || transfer.status === 'paused' || transfer.status === 'pending') && (
                                             <button
                                                 onClick={() => handleAction(transfer, 'cancel')}
-                                                className="btn btn-ghost text-xs"
+                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
                                                 title="Cancel"
                                             >
                                                 🚫

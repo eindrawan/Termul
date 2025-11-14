@@ -182,19 +182,19 @@ export default function FileManager({
     return (
         <div className="flex flex-col h-full">
             {/* Compact header */}
-            <div className="flex items-center justify-between px-3 py-1 bg-white border-b flex-shrink-0">
+            <div className="flex items-center justify-between px-3 py-1 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex-shrink-0">
                 <div className="flex items-center space-x-3">
                     <button
                         onClick={handleUpload}
                         disabled={selectedLocalFiles.length === 0 || !isConnected}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50"
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors"
                     >
                         Upload ({selectedLocalFiles.length})
                     </button>
                     <button
                         onClick={handleDownload}
                         disabled={selectedRemoteFiles.length === 0 || !isConnected}
-                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50"
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded disabled:opacity-50 hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors"
                     >
                         Download ({selectedRemoteFiles.length})
                     </button>
@@ -203,7 +203,7 @@ export default function FileManager({
                     <button
                         onClick={() => setBookmarkDialogOpen(true)}
                         disabled={!isConnected}
-                        className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
                         title="Save bookmark"
                     >
                         <BookmarkHeroIcon className="h-4 w-4" />
@@ -218,12 +218,12 @@ export default function FileManager({
                             setBookmarkListOpen(true)
                         }}
                         disabled={bookmarks.length === 0}
-                        className="p-1 text-gray-600 hover:text-blue-600 disabled:opacity-50"
+                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
                         title="View bookmarks"
                     >
                         <BookOpenIcon className="h-4 w-4" />
                     </button>
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
                         {!isConnected && 'Not connected'}
                     </div>
                 </div>
@@ -233,7 +233,7 @@ export default function FileManager({
             <div id="file-manager-container" className="flex flex-1 min-h-0 relative">
                 {/* Local File Explorer */}
                 <div
-                    className="border-r transition-all duration-150"
+                    className="border-r dark:border-gray-700 transition-all duration-150"
                     style={{ width: `${leftPaneWidth}%` }}
                 >
                     <FileExplorer
@@ -249,12 +249,12 @@ export default function FileManager({
 
                 {/* Resizer */}
                 <div
-                    className={`w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors ${isResizing ? 'bg-blue-500' : ''
+                    className={`w-1 bg-gray-300 dark:bg-gray-600 hover:bg-blue-500 dark:hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors ${isResizing ? 'bg-blue-500 dark:bg-blue-400' : ''
                         }`}
                     onMouseDown={handleMouseDown}
                 >
                     <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-0.5 h-8 bg-gray-400 rounded"></div>
+                        <div className="w-0.5 h-8 bg-gray-400 dark:bg-gray-500 rounded"></div>
                     </div>
                 </div>
 

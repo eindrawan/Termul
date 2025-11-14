@@ -4,6 +4,7 @@ import { useConnection } from '../contexts/ConnectionContext'
 import { useDeletion } from '../contexts/DeletionContext'
 import { useTransfer } from '../contexts/TransferContext'
 import ProfileSidebar from './ProfileSidebar'
+import SidebarToggle from './SidebarToggle'
 import FileManager from './FileManager'
 import Terminal from './Terminal'
 import WindowList from './WindowList'
@@ -13,6 +14,7 @@ import FileEditorManager from './FileEditorManager'
 export default function MainLayout() {
     const [activeTab, setActiveTab] = useState<TabType>('file-manager')
     const [localPath, setLocalPath] = useState('C:\\')
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const { state: connectionState, dispatch } = useConnection()
     const { deletionProgress } = useDeletion()
     const { state: transferState } = useTransfer()
@@ -69,7 +71,13 @@ export default function MainLayout() {
             <FileEditorManager />
 
             {/* Profile Sidebar */}
-            <ProfileSidebar />
+            {isSidebarOpen && <ProfileSidebar />}
+
+            {/* Sidebar Toggle Border */}
+            <SidebarToggle
+                isSidebarOpen={isSidebarOpen}
+                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+            />
 
             {/* Main Content Area */}
             <div className="flex flex-col flex-1 overflow-hidden">
@@ -144,14 +152,11 @@ export default function MainLayout() {
                                         currentConnection.status.error ? 'status-error' :
                                             'status-disconnected'
                                     }`}>
-                                    {currentConnection.status.connected ? 'Connected' :
+                                    {currentConnection.status.connected ? `${currentConnection.profile.name}` :
                                         currentConnection.status.connecting ? 'Connecting...' :
                                             currentConnection.status.error ? 'Error' :
                                                 'Disconnected'}
                                 </span>
-                                {currentConnection.status.host && (
-                                    <span>{currentConnection.status.username}@{currentConnection.status.host}</span>
-                                )}
                                 {currentConnection.status.latency && (
                                     <span>Latency: {currentConnection.status.latency}ms</span>
                                 )}

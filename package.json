@@ -1,6 +1,6 @@
 {
     "name": "termul-ssh-client",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "WinSCP-like SSH client with file manager and terminal built with Electron and React",
     "main": "dist/main/main/main.js",
     "homepage": "./",
@@ -17,7 +17,7 @@
         "dist": "npm run build && npx electron-builder",
         "dist:win": "npm run build && npx electron-builder --win",
         "dist:win:nosign": "npm run build && npx electron-builder --win --publish=never",
-        "publish": "npm run build && npx electron-builder --win portable --publish=never",
+        "deploy": "npm run build && npx electron-builder --win portable --publish=never",
         "lint": "eslint . --ext .ts,.tsx",
         "lint:fix": "eslint . --ext .ts,.tsx --fix",
         "type-check": "tsc --noEmit"
