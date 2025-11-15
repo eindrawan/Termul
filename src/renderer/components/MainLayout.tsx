@@ -184,7 +184,7 @@ export default function MainLayout() {
                                 )}
                             </span>
                         ) : (
-                            <span>Termul SSH Client v0.1.0</span>
+                            <span>Termul SSH Client v0.1.1</span>
                         )}
                         <WindowList />
                     </div>

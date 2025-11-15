@@ -82,8 +82,8 @@ export default function NameInputDialog({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-96">
-                <h2 className="text-lg font-semibold mb-4">{title}</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-96">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{title}</h2>
 
                 <div className="mb-4">
                     <input
@@ -93,7 +93,7 @@ export default function NameInputDialog({
                         onChange={handleChange}
                         onKeyDown={handleKeyDown}
                         placeholder={placeholder}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${error ? 'border-red-500' : 'border-gray-300'
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                             }`}
                     />
                     {error && (
@@ -104,7 +104,7 @@ export default function NameInputDialog({
                 <div className="flex justify-end space-x-2">
                     <button
                         onClick={onCancel}
-                        className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                        className="px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
                     >
                         Cancel
                     </button>

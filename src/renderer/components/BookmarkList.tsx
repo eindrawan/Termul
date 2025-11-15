@@ -96,17 +96,17 @@ export default function BookmarkList({
     return (
         <div
             ref={menuRef}
-            className="fixed bg-white border border-gray-300 rounded-md shadow-lg z-50 w-80"
+            className="fixed bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg z-50 w-80"
             style={{ left: adjustedX, top: adjustedY }}
         >
             {/* Search input */}
-            <div className="p-3 border-b border-gray-200">
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                 <input
                     type="text"
                     placeholder="Search bookmarks..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
                     autoFocus
                 />
             </div>
@@ -114,32 +114,32 @@ export default function BookmarkList({
             {/* Bookmark list */}
             <div className="max-h-80 overflow-y-auto">
                 {filteredBookmarks.length === 0 ? (
-                    <div className="text-gray-500 text-center py-4 text-sm">
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-4 text-sm">
                         {searchTerm ? 'No bookmarks found' : 'No bookmarks saved yet'}
                     </div>
                 ) : (
                     filteredBookmarks.map((bookmark) => (
                         <div
                             key={bookmark.id}
-                            className="hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                            className="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                             onClick={() => handleSelect(bookmark)}
                         >
                             <div className="p-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-900 truncate text-sm">
+                                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate text-sm">
                                             {bookmark.name}
                                         </div>
-                                        <div className="text-xs text-gray-600 truncate mt-1">
+                                        <div className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">
                                             Local: {bookmark.localPath}
                                         </div>
-                                        <div className="text-xs text-gray-600 truncate">
+                                        <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                             Remote: {bookmark.remotePath}
                                         </div>
                                     </div>
                                     <button
                                         onClick={(e) => handleDelete(e, bookmark.id!, bookmark.name)}
-                                        className="ml-2 text-red-500 hover:text-red-700 text-xs p-1"
+                                        className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs p-1"
                                         title="Delete bookmark"
                                     >
                                         ✕
