@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MinusIcon, Square2StackIcon, XMarkIcon, Squares2X2Icon } from '@heroicons/react/24/outline'
+import { MinusIcon, Square2StackIcon, XMarkIcon, StopIcon } from '@heroicons/react/24/outline'
 import { useWindowManager } from '../contexts/WindowManagerContext'
 
 interface WindowProps {
@@ -123,7 +123,8 @@ export default function Window({
         left: windowConfig.state === 'maximized' ? 0 : windowConfig.position.x,
         top: windowConfig.state === 'maximized' ? 0 : windowConfig.position.y,
         width: windowConfig.state === 'maximized' ? '100vw' : windowConfig.position.width,
-        height: windowConfig.state === 'maximized' ? '100vh' : windowConfig.position.height,
+        height: windowConfig.state === 'maximized' ? 'calc(100vh - 34px)' : windowConfig.position.height,
+        borderRadius: windowConfig.state === 'maximized' ? '0' : '0.5rem',
         zIndex: windowConfig.zIndex,
     }
 
@@ -176,9 +177,9 @@ export default function Window({
                         title={windowConfig.state === 'maximized' ? "Restore" : "Maximize"}
                     >
                         {windowConfig.state === 'maximized' ? (
-                            <Squares2X2Icon className="h-3.5 w-3.5" />
-                        ) : (
                             <Square2StackIcon className="h-3.5 w-3.5" />
+                        ) : (
+                            <StopIcon className="h-3.5 w-3.5" />
                         )}
                     </button>
                     <button

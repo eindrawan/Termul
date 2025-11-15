@@ -4,6 +4,7 @@ import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
 import Editor from '@monaco-editor/react'
 import { useWindowManager } from '../contexts/WindowManagerContext'
+import { useTheme } from '../contexts/ThemeContext'
 
 interface FileEditorProps {
     file: FileSystemEntry | null
@@ -24,6 +25,7 @@ export default function FileEditor({
     isLocal
 }: FileEditorProps) {
     const { registerWindow, unregisterWindow, getWindow, updateWindow } = useWindowManager()
+    const { theme: globalTheme } = useTheme()
     const [content, setContent] = useState('')
     const [originalContent, setOriginalContent] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -31,8 +33,12 @@ export default function FileEditor({
     const [error, setError] = useState<string | null>(null)
     const [showCloseConfirm, setShowCloseConfirm] = useState(false)
     const [language, setLanguage] = useState('plaintext')
-    const [theme, setTheme] = useState('vs')
     const editorRef = useRef<any>(null)
+
+    // Map global theme to Monaco editor theme
+    const getMonacoTheme = () => {
+        return globalTheme === 'dark' ? 'vs-dark' : 'vs'
+    }
     const instanceId = useRef(++instanceCounter)
     const windowId = useRef(`file-editor-${instanceId.current}-${file?.path || 'unknown'}`)
     const onCloseRef = useRef(onClose)
@@ -134,7 +140,7 @@ export default function FileEditor({
                                 value={content}
                                 onChange={(value) => setContent(value || '')}
                                 onMount={handleEditorDidMount}
-                                theme={theme}
+                                theme={getMonacoTheme()}
                                 options={{
                                     selectOnLineNumbers: true,
                                     automaticLayout: true,
@@ -163,41 +169,28 @@ export default function FileEditor({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-                        <div className="flex items-center space-x-4">
-                            <div className="text-sm text-gray-600">
+                    <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                        <div className="flex items-center space-x-3">
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
                                 {content !== originalContent && (
-                                    <span className="text-orange-600">● Unsaved changes</span>
+                                    <span className="text-orange-600 dark:text-orange-400">● Unsaved changes</span>
                                 )}
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <label htmlFor="theme-select" className="text-sm text-gray-600">Theme:</label>
-                                <select
-                                    id="theme-select"
-                                    value={theme}
-                                    onChange={(e) => setTheme(e.target.value)}
-                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                >
-                                    <option value="vs">Light</option>
-                                    <option value="vs-dark">Dark</option>
-                                    <option value="hc-black">High Contrast</option>
-                                </select>
-                            </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
                                 Language: <span className="font-medium">{language}</span>
                             </div>
                         </div>
                         <div className="flex space-x-2">
                             <button
                                 onClick={handleClose}
-                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                                className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSave}
                                 disabled={isLoading || isSaving || content === originalContent}
-                                className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed rounded focus:outline-none focus:ring-1 focus:ring-primary-500 focus:ring-offset-1 transition-colors shadow-sm"
                             >
                                 {isSaving ? 'Saving...' : 'Save'}
                             </button>
@@ -213,7 +206,7 @@ export default function FileEditor({
                 onClose: () => handleWindowClose()
             })
         }
-    }, [isOpen, file, content, originalContent, error, isLoading, isSaving, language, theme])
+    }, [isOpen, file, content, originalContent, error, isLoading, isSaving, language, globalTheme])
 
     // Load file content when editor opens
     useEffect(() => {
