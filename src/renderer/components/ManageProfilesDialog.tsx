@@ -283,10 +283,10 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
             />
 
             <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm">
-                <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
                     {/* Header */}
-                    <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 flex-shrink-0">
-                        <h2 className="text-sm font-semibold text-gray-800">
+                    <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 border-b border-blue-200 dark:border-blue-700 flex-shrink-0">
+                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                             {editingProfile ? 'Edit Profile' : 'Add New Profile'}
                         </h2>
                     </div>
@@ -295,12 +295,12 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                     <div className="overflow-y-auto flex-1 px-4 py-3">
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Profile Name *</label>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Profile Name *</label>
                                 <input
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                    className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                     placeholder="My Server"
                                 />
                                 {errors.name && <div className="text-red-500 text-xs mt-0.5">{errors.name}</div>}
@@ -308,45 +308,45 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Host *</label>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Host *</label>
                                     <input
                                         type="text"
                                         value={formData.host}
                                         onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                                        className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.host ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                        className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.host ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                         placeholder="192.168.1.100"
                                     />
                                     {errors.host && <div className="text-red-500 text-xs mt-0.5">{errors.host}</div>}
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Port *</label>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Port *</label>
                                     <input
                                         type="number"
                                         min="1"
                                         max="65535"
                                         value={formData.port}
                                         onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 22 })}
-                                        className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.port ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                        className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.port ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                     />
                                     {errors.port && <div className="text-red-500 text-xs mt-0.5">{errors.port}</div>}
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Username *</label>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Username *</label>
                                 <input
                                     type="text"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                    className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.username ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                    className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.username ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                     placeholder="user"
                                 />
                                 {errors.username && <div className="text-red-500 text-xs mt-0.5">{errors.username}</div>}
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Authentication Type *</label>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Authentication Type *</label>
                                 <select
                                     value={formData.authType}
                                     onChange={(e) => {
@@ -358,7 +358,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                         })
                                         setShowPassword(false)
                                     }}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100 transition-colors"
                                 >
                                     <option value="password">Password</option>
                                     <option value="ssh-key">SSH Key</option>
@@ -368,19 +368,19 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
 
                             {formData.authType === 'password' ? (
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Password *</label>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password *</label>
                                     <div className="flex space-x-2">
                                         <div className="relative flex-1">
                                             <input
                                                 type={showPassword ? "text" : "password"}
                                                 value={formData.passwordId}
                                                 onChange={(e) => setFormData({ ...formData, passwordId: e.target.value })}
-                                                className={`w-full px-2.5 py-1.5 pr-8 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.passwordId ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                                className={`w-full px-2.5 py-1.5 pr-8 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.passwordId ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                                 placeholder="Enter or select password"
                                             />
                                             <button
                                                 type="button"
-                                                className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-500 hover:text-gray-700"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                                 onClick={() => setShowPassword(!showPassword)}
                                             >
                                                 {showPassword ? (
@@ -392,7 +392,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                         </div>
                                         <button
                                             type="button"
-                                            className="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-500 transition-colors"
+                                            className="px-2.5 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-500 transition-colors"
                                             onClick={() => {
                                                 setPromptDialog({
                                                     isOpen: true,
@@ -432,14 +432,14 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                             ) : (
                                 <>
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                             {formData.authType === 'ssh-key' ? 'SSH Key File' : 'Private Key File'} *
                                         </label>
                                         <input
                                             type="text"
                                             value={formData.keyPath}
                                             onChange={(e) => setFormData({ ...formData, keyPath: e.target.value })}
-                                            className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.keyPath ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                            className={`w-full px-2.5 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.keyPath ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                             placeholder={formData.authType === 'ssh-key' ?
                                                 "C:\\Users\\user\\.ssh\\id_rsa" :
                                                 "C:\\Users\\user\\.ssh\\id_rsa"}
@@ -448,18 +448,18 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1">Passphrase (Optional)</label>
+                                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Passphrase (Optional)</label>
                                         <div className="relative">
                                             <input
                                                 type={showPassphrase ? "text" : "password"}
                                                 value={formData.passphrase}
                                                 onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
-                                                className={`w-full px-2.5 py-1.5 pr-8 text-sm border rounded focus:outline-none focus:ring-1 transition-colors ${errors.passphrase ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                                                className={`w-full px-2.5 py-1.5 pr-8 text-sm border rounded focus:outline-none focus:ring-1 transition-colors dark:bg-gray-700 dark:text-gray-100 ${errors.passphrase ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'}`}
                                                 placeholder="Enter passphrase for private key"
                                             />
                                             <button
                                                 type="button"
-                                                className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-500 hover:text-gray-700"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                                 onClick={() => setShowPassphrase(!showPassphrase)}
                                             >
                                                 {showPassphrase ? (
@@ -470,7 +470,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                             </button>
                                         </div>
                                         {errors.passphrase && <div className="text-red-500 text-xs mt-0.5">{errors.passphrase}</div>}
-                                        <p className="text-xs text-gray-500 mt-0.5">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                             Leave empty if the private key is not encrypted with a passphrase
                                         </p>
                                     </div>
@@ -480,7 +480,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="flex justify-between px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                    <div className="flex justify-between px-4 py-2.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex-shrink-0">
                         {editingProfile && (
                             <button
                                 onClick={() => handleDelete(editingProfile.id!)}
@@ -493,7 +493,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                         <div className="flex space-x-2 ml-auto">
                             <button
                                 onClick={handleCancel}
-                                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-500 transition-colors"
+                                className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 transition-colors"
                                 disabled={saveProfileMutation.isPending}
                             >
                                 Cancel
@@ -511,7 +511,7 @@ export default function ManageProfilesDialog({ isOpen, onClose, editingProfile: 
                                     passphrase: formData.passphrase || undefined,
                                 })}
                                 disabled={testLoading === (editingProfile?.id || 'new') || !formData.name || !formData.host || !formData.username}
-                                className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {testLoading === (editingProfile?.id || 'new') ? 'Testing...' : 'Test Connection'}
                             </button>

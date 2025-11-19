@@ -5,9 +5,11 @@ import { FileSystemEntry, TransferDescriptor, Bookmark } from '../types'
 import FileExplorer from './FileExplorer'
 import BookmarkDialog from './BookmarkDialog'
 import BookmarkList from './BookmarkList'
+import HistoryList from './HistoryList'
 import {
     BookmarkIcon as BookmarkHeroIcon,
-    BookOpenIcon
+    BookOpenIcon,
+    ClockIcon
 } from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
@@ -34,9 +36,11 @@ export default function FileManager({
     const [bookmarkListOpen, setBookmarkListOpen] = useState(false)
     const [bookmarkListPosition, setBookmarkListPosition] = useState({ x: 0, y: 0 })
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
+    const [historyListOpen, setHistoryListOpen] = useState(false)
+    const [historyListPosition, setHistoryListPosition] = useState({ x: 0, y: 0 })
 
     const { state: connectionState, dispatch } = useConnection()
-    const { enqueueMutation } = useTransfer()
+    const { state: transferState, enqueueMutation, refetchQueue } = useTransfer()
 
     // Save local path when it changes
     const handleLocalPathChange = (path: string) => {
@@ -47,6 +51,10 @@ export default function FileManager({
                 payload: { connectionId: connectionState.currentConnectionId, localPath: path }
             })
         }
+    }
+
+    const handleRemotePathChange = (path: string) => {
+        onRemotePathChange(path)
     }
 
     const connection = connectionState.activeConnections.get(connectionId)
@@ -179,6 +187,25 @@ export default function FileManager({
         }
     }
 
+    const handleClearHistory = async () => {
+        // Clear all transfers (history and active ones)
+        const activeCount = transferState.activeTransfers.length
+        const message = activeCount > 0
+            ? `Are you sure you want to clear all transfer history? This will also cancel ${activeCount} active transfer(s).`
+            : 'Are you sure you want to clear all transfer history?'
+
+        if (confirm(message)) {
+            try {
+                await window.electronAPI.clearTransferHistory()
+                // Refetch the transfer queue to update the UI
+                refetchQueue()
+            } catch (error) {
+                console.error('Failed to clear transfer history:', error)
+                alert('Failed to clear transfer history')
+            }
+        }
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Compact header */}
@@ -222,6 +249,20 @@ export default function FileManager({
                         title="View bookmarks"
                     >
                         <BookOpenIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setHistoryListPosition({
+                                x: rect.left,
+                                y: rect.bottom
+                            })
+                            setHistoryListOpen(true)
+                        }}
+                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="View transfer history"
+                    >
+                        <ClockIcon className="h-4 w-4" />
                     </button>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
                         {!isConnected && 'Not connected'}
@@ -267,7 +308,7 @@ export default function FileManager({
                         connectionId={connectionId}
                         title="Remote Files"
                         path={remotePath}
-                        onPathChange={onRemotePathChange}
+                        onPathChange={handleRemotePathChange}
                         selectedFiles={selectedRemoteFiles}
                         onSelectionChange={setSelectedRemoteFiles}
                         isLocal={false}
@@ -298,6 +339,17 @@ export default function FileManager({
                     onClose={() => setBookmarkListOpen(false)}
                     x={bookmarkListPosition.x}
                     y={bookmarkListPosition.y}
+                />
+            )}
+
+            {/* History List */}
+            {historyListOpen && (
+                <HistoryList
+                    transfers={transferState.completedTransfers}
+                    onClose={() => setHistoryListOpen(false)}
+                    onClearHistory={handleClearHistory}
+                    x={historyListPosition.x}
+                    y={historyListPosition.y}
                 />
             )}
         </div>

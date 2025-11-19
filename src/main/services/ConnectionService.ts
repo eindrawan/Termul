@@ -4,6 +4,7 @@ import { DatabaseService } from './DatabaseService'
 import { CredentialService } from './CredentialService'
 import { randomUUID } from 'crypto'
 import { detectKeyType } from '../utils/keyConverter'
+import { FileService } from './FileService'
 
 interface ConnectionInstance {
   id: string
@@ -17,10 +18,15 @@ export class ConnectionService {
   private connections: Map<string, ConnectionInstance> = new Map()
   private db: DatabaseService
   private credentials: CredentialService
+  private fileService: FileService | null = null
 
   constructor() {
     this.db = new DatabaseService()
     this.credentials = new CredentialService()
+  }
+
+  setFileService(fileService: FileService): void {
+    this.fileService = fileService
   }
 
   async connect(profile: ConnectionProfile): Promise<{ connectionId: string; status: ConnectionStatus }> {
@@ -131,6 +137,11 @@ export class ConnectionService {
     try {
       const connection = this.connections.get(connectionId)
       if (connection) {
+        // Clear the SFTP cache before disposing of the connection
+        if (this.fileService) {
+          await this.fileService.clearSftpCache(connectionId)
+        }
+
         await connection.ssh.dispose()
         this.connections.delete(connectionId)
 

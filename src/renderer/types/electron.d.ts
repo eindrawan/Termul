@@ -17,6 +17,24 @@ export interface ElectronAPI {
   listLocalFiles: (path: string) => Promise<any>
   listRemoteFiles: (connectionId: string, path: string) => Promise<any>
   getHomeDirectory: () => Promise<string>
+  deleteLocalFile: (path: string) => Promise<any>
+  deleteRemoteFile: (connectionId: string, path: string) => Promise<any>
+
+  // Bulk operations
+  bulkDeleteRemote: (connectionId: string, files: any[]) => Promise<{
+    success: boolean
+    deletedCount: number
+    failedCount: number
+    failedFiles: Array<{ path: string; error: string }>
+  }>
+  bulkDeleteLocal: (files: any[]) => Promise<{
+    success: boolean
+    deletedCount: number
+    failedCount: number
+    failedFiles: Array<{ path: string; error: string }>
+  }>
+  onBulkDeleteProgress: (callback: (progress: { current: number; total: number; currentFile: string }) => void) => () => void
+
 
   // Transfer operations
   enqueueTransfers: (transfers: any[]) => Promise<any>
@@ -24,6 +42,7 @@ export interface ElectronAPI {
   pauseTransfer: (id: string) => Promise<any>
   resumeTransfer: (id: string) => Promise<any>
   cancelTransfer: (id: string) => Promise<any>
+  clearTransferHistory: () => Promise<any>
   onTransferProgress: (callback: (progress: any) => void) => void
   onTransferComplete: (callback: (result: any) => void) => void
 

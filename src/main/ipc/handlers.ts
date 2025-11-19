@@ -5,13 +5,18 @@ import { FileService } from '../services/FileService'
 import { TransferService } from '../services/TransferService'
 import { TerminalService } from '../services/TerminalService'
 import { DatabaseService } from '../services/DatabaseService'
+import { BulkOperationService } from '../services/BulkOperationService'
 
 // Initialize services
-const connectionService = new ConnectionService()
 const db = new DatabaseService()
+const connectionService = new ConnectionService()
 const fileService = new FileService(connectionService)
 const transferService = new TransferService(db, connectionService)
 const terminalService = new TerminalService(connectionService)
+const bulkOperationService = new BulkOperationService(fileService)
+
+// Set the file service instance in the connection service to handle cache clearing
+connectionService.setFileService(fileService)
 
 // Schema validation
 const ConnectionProfileSchema = z.object({
@@ -134,8 +139,8 @@ export function setupIpcHandlers() {
       // For now, we'll return null to indicate no passphrase was provided
       return await new Promise<string | null>((resolve) => {
         // Store the resolve function globally so it can be called from the renderer
-        ;(global as any).pendingPassphrasePrompt = { keyPath, resolve }
-        
+        ; (global as any).pendingPassphrasePrompt = { keyPath, resolve }
+
         // Send an event to the renderer to show the passphrase dialog
         if ((global as any).mainWindow) {
           (global as any).mainWindow.webContents.send('show-passphrase-prompt', { keyPath })
@@ -152,7 +157,7 @@ export function setupIpcHandlers() {
     if ((global as any).pendingPassphrasePrompt) {
       const { resolve } = (global as any).pendingPassphrasePrompt
       resolve(passphrase)
-      ;(global as any).pendingPassphrasePrompt = null
+        ; (global as any).pendingPassphrasePrompt = null
     }
   })
 
@@ -161,7 +166,7 @@ export function setupIpcHandlers() {
     if ((global as any).pendingPassphrasePrompt) {
       const { resolve } = (global as any).pendingPassphrasePrompt
       resolve(null)
-      ;(global as any).pendingPassphrasePrompt = null
+        ; (global as any).pendingPassphrasePrompt = null
     }
   })
 
@@ -239,6 +244,19 @@ export function setupIpcHandlers() {
       console.error('Delete remote file error:', error)
       throw error
     }
+  })
+
+  // Bulk operation handlers
+  ipcMain.handle('bulk-delete-remote', async (event, connectionId: string, files) => {
+    return bulkOperationService.bulkDeleteRemote(connectionId, files, (progress) => {
+      event.sender.send('bulk-delete-progress', progress)
+    })
+  })
+
+  ipcMain.handle('bulk-delete-local', async (event, files) => {
+    return bulkOperationService.bulkDeleteLocal(files, (progress) => {
+      event.sender.send('bulk-delete-progress', progress)
+    })
   })
 
   // File content handlers for editing
@@ -381,6 +399,18 @@ export function setupIpcHandlers() {
     }
   })
 
+  ipcMain.handle('clear-transfer-history', async () => {
+    try {
+      // First stop all active transfers
+      await transferService.clearAllTransfers()
+      // Then clear all transfers from database
+      return await db.clearTransferHistory()
+    } catch (error) {
+      console.error('Clear transfer history error:', error)
+      throw error
+    }
+  })
+
   // Terminal handlers
   ipcMain.handle('open-terminal', async (_, connectionId: string) => {
     try {
@@ -433,18 +463,18 @@ export function setupIpcHandlers() {
   ipcMain.handle('save-bookmark', async (_, bookmark) => {
     try {
       const validatedBookmark = BookmarkSchema.parse(bookmark)
-      
+
       // Check if bookmark already exists
       const exists = await db.bookmarkExists(
         validatedBookmark.profileId,
         validatedBookmark.localPath,
         validatedBookmark.remotePath
       )
-      
+
       if (exists) {
         throw new Error('Bookmark already exists for this profile and paths')
       }
-      
+
       return await db.saveBookmark(validatedBookmark)
     } catch (error) {
       console.error('Save bookmark error:', error)
@@ -483,18 +513,18 @@ export function setupIpcHandlers() {
   ipcMain.handle('save-terminal-bookmark', async (_, bookmark) => {
     try {
       const validatedBookmark = TerminalBookmarkSchema.parse(bookmark)
-      
+
       // Check if bookmark already exists
       const exists = await db.terminalBookmarkExists(
         validatedBookmark.profileId,
         validatedBookmark.name,
         validatedBookmark.command
       )
-      
+
       if (exists) {
         throw new Error('Terminal bookmark already exists for this profile and command')
       }
-      
+
       return await db.saveTerminalBookmark(validatedBookmark)
     } catch (error) {
       console.error('Save terminal bookmark error:', error)

@@ -1,8 +1,7 @@
 const { parentPort, workerData } = require('worker_threads')
-const { createReadStream, createWriteStream, promises: fs } = require('fs')
-const { Client } = require('ssh2')
-const { SFTPClient } = require('ssh2-sftp-client')
-const { join, basename, dirname } = require('path')
+const { createWriteStream, promises: fs } = require('fs')
+const SFTPClient = require('ssh2-sftp-client')
+const { join, basename, dirname, posix } = require('path')
 
 // Global error handlers
 process.on('uncaughtException', (error) => {
@@ -29,29 +28,9 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1)
 })
 
-let sftpClient = null
 let totalBytes = 0
 let transferredBytes = 0
 let startTime = null
-
-async function initializeSftp() {
-  return new Promise((resolve, reject) => {
-    const client = new Client()
-    
-    client.on('ready', () => {
-      client.sftp((err, sftp) => {
-        if (err) {
-          reject(err)
-        } else {
-          sftpClient = sftp
-          resolve(sftp)
-        }
-      })
-    })
-    
-    client.connect(workerData.sshConfig)
-  })
-}
 
 async function getTransferStats(sourcePath) {
   try {
@@ -65,7 +44,7 @@ async function getTransferStats(sourcePath) {
   }
 }
 
-async function transferFile(sourcePath, destinationPath, direction) {
+async function transferFile(sftp, sourcePath, destinationPath, direction) {
   try {
     console.log('Worker: transferFile - Getting stats for:', sourcePath)
     const stats = await getTransferStats(sourcePath)
@@ -73,11 +52,18 @@ async function transferFile(sourcePath, destinationPath, direction) {
 
     if (stats.isDirectory) {
       console.log('Worker: transferFile - Is directory, transferring recursively')
+
+      // If uploading a directory, we must create the root directory first
+      if (direction === 'upload') {
+        console.log(`Worker: Creating root directory: ${destinationPath}`)
+        await sftp.mkdir(destinationPath, true)
+      }
+
       // Handle directory transfer recursively
-      await transferDirectory(sourcePath, destinationPath, direction)
+      await transferDirectory(sftp, sourcePath, destinationPath, direction)
     } else {
       console.log('Worker: transferFile - Is file, transferring single file')
-      await transferSingleFile(sourcePath, destinationPath, stats.size, direction)
+      await transferSingleFile(sftp, sourcePath, destinationPath, stats.size, direction)
     }
     console.log('Worker: transferFile - Transfer complete')
   } catch (error) {
@@ -85,103 +71,49 @@ async function transferFile(sourcePath, destinationPath, direction) {
     parentPort.postMessage({
       type: 'error',
       transferId: workerData.transfer.id,
-      error: error.message
+      error: error.message,
     })
   }
 }
 
-async function transferSingleFile(sourcePath, destinationPath, fileSize, direction) {
-  console.log('Worker: transferSingleFile - Starting transfer')
-  console.log('Worker: transferSingleFile - Source:', sourcePath)
-  console.log('Worker: transferSingleFile - Destination:', destinationPath)
-  console.log('Worker: transferSingleFile - Direction:', direction)
+async function transferSingleFile(sftp, sourcePath, destinationPath, fileSize, direction) {
+  const options = {
+    step: (total_transferred, chunk, total) => {
+      transferredBytes = total_transferred
+      updateProgress()
+    },
+  }
 
-  return new Promise((resolve, reject) => {
-    let readStream, writeStream
-
-    try {
-      if (direction === 'upload') {
-        console.log('Worker: transferSingleFile - Creating read stream from local file')
-        readStream = createReadStream(sourcePath)
-        console.log('Worker: transferSingleFile - Creating write stream to remote file')
-        writeStream = sftpClient.createWriteStream(destinationPath)
-      } else {
-        console.log('Worker: transferSingleFile - Creating read stream from remote file')
-        readStream = sftpClient.createReadStream(sourcePath)
-        console.log('Worker: transferSingleFile - Creating write stream to local file')
-        writeStream = createWriteStream(destinationPath)
-      }
-
-      console.log('Worker: transferSingleFile - Streams created, setting up event handlers')
-
-      readStream.on('data', (chunk) => {
-        console.log('Worker: transferSingleFile - Data chunk received:', chunk.length, 'bytes')
-        transferredBytes += chunk.length
-        updateProgress()
-      })
-
-      readStream.on('end', () => {
-        console.log('Worker: transferSingleFile - Read stream ended')
-      })
-
-      readStream.on('close', () => {
-        console.log('Worker: transferSingleFile - Read stream closed')
-      })
-
-      writeStream.on('error', (error) => {
-        console.error('Worker: transferSingleFile - Write stream error:', error)
-        reject(error)
-      })
-
-      readStream.on('error', (error) => {
-        console.error('Worker: transferSingleFile - Read stream error:', error)
-        reject(error)
-      })
-
-      writeStream.on('finish', () => {
-        console.log('Worker: transferSingleFile - Write stream finished')
-        resolve()
-      })
-
-      writeStream.on('close', () => {
-        console.log('Worker: transferSingleFile - Write stream closed')
-        // For SFTP streams, 'close' might be the completion event
-        resolve()
-      })
-
-      console.log('Worker: transferSingleFile - Piping streams')
-      // Pipe the read stream to the write stream
-      readStream.pipe(writeStream)
-    } catch (error) {
-      console.error('Worker: transferSingleFile - Error setting up streams:', error)
-      reject(error)
-    }
-  })
+  if (direction === 'upload') {
+    await sftp.put(sourcePath, destinationPath, options)
+  } else {
+    await sftp.get(sourcePath, createWriteStream(destinationPath), options)
+  }
 }
 
-async function transferDirectory(sourcePath, destinationPath, direction) {
+async function transferDirectory(sftp, sourcePath, destinationPath, direction) {
   try {
     const entries = await fs.readdir(sourcePath, { withFileTypes: true })
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sourceDirPath = join(sourcePath, entry.name)
-        const destDirPath = join(destinationPath, entry.name)
-        
+        const destDirPath = posix.join(destinationPath, entry.name)
+
         // Create destination directory
         if (direction === 'upload') {
-          await sftpClient.mkdir(destDirPath, {})
+          await sftp.mkdir(destDirPath, true)
         } else {
           await fs.mkdir(destDirPath, { recursive: true })
         }
-        
+
         // Recursively transfer directory contents
-        await transferDirectory(sourceDirPath, destDirPath, direction)
+        await transferDirectory(sftp, sourceDirPath, destDirPath, direction)
       } else {
         const sourceFilePath = join(sourcePath, entry.name)
-        const destFilePath = join(destinationPath, entry.name)
+        const destFilePath = posix.join(destinationPath, entry.name)
         const stats = await getTransferStats(sourceFilePath)
-        await transferSingleFile(sourceFilePath, destFilePath, stats.size, direction)
+        await transferSingleFile(sftp, sourceFilePath, destFilePath, stats.size, direction)
       }
     }
   } catch (error) {
@@ -191,13 +123,13 @@ async function transferDirectory(sourcePath, destinationPath, direction) {
 
 function updateProgress() {
   if (!startTime) startTime = Date.now()
-  
+
   const progress = totalBytes > 0 ? (transferredBytes / totalBytes) * 100 : 0
   const elapsed = (Date.now() - startTime) / 1000
   const speed = elapsed > 0 ? transferredBytes / elapsed : 0
   const remaining = totalBytes > 0 ? totalBytes - transferredBytes : 0
   const eta = speed > 0 ? remaining / speed : 0
-  
+
   parentPort.postMessage({
     type: 'progress',
     transferId: workerData.transfer.id,
@@ -208,13 +140,14 @@ function updateProgress() {
 }
 
 async function main() {
+  const sftp = new SFTPClient()
   try {
     console.log('Worker: Starting main function')
     console.log('Worker: SSH Config:', workerData.sshConfig)
     console.log('Worker: Transfer:', workerData.transfer)
 
-    await initializeSftp()
-    console.log('Worker: SFTP initialized')
+    await sftp.connect(workerData.sshConfig)
+    console.log('Worker: SFTP connected')
 
     const { sourcePath, destinationPath, direction } = workerData.transfer
     console.log('Worker: Getting file stats for:', sourcePath)
@@ -229,23 +162,18 @@ async function main() {
     } else {
       console.log('Worker: Download mode - getting remote file stats')
       // For downloads, we need to get remote file size
-      const stats = await new Promise((resolve, reject) => {
-        sftpClient.stat(sourcePath, (err, stats) => {
-          if (err) reject(err)
-          else resolve(stats)
-        })
-      })
-      totalBytes = stats.isFile ? stats.size : await calculateRemoteDirectorySize(sourcePath)
+      const stats = await sftp.stat(sourcePath)
+      totalBytes = stats.isDirectory ? await calculateRemoteDirectorySize(sftp, sourcePath) : stats.size
       console.log('Worker: Total bytes to transfer:', totalBytes)
     }
 
     console.log('Worker: Starting file transfer')
-    await transferFile(sourcePath, destinationPath, direction)
+    await transferFile(sftp, sourcePath, destinationPath, direction)
     console.log('Worker: File transfer complete')
-    
+
     parentPort.postMessage({
       type: 'complete',
-      transferId: workerData.transfer.id
+      transferId: workerData.transfer.id,
     })
   } catch (error) {
     console.error('Worker: Error in main function:', error)
@@ -253,24 +181,22 @@ async function main() {
     parentPort.postMessage({
       type: 'error',
       transferId: workerData.transfer.id,
-      error: error.message
+      error: error.message,
     })
   } finally {
-    if (sftpClient) {
-      sftpClient.end()
-    }
+    await sftp.end()
   }
 }
 
 async function calculateDirectorySize(dirPath) {
   let totalSize = 0
-  
+
   async function calculateSize(path) {
     const entries = await fs.readdir(path, { withFileTypes: true })
-    
+
     for (const entry of entries) {
       const fullPath = join(path, entry.name)
-      
+
       if (entry.isDirectory()) {
         await calculateSize(fullPath)
       } else {
@@ -279,37 +205,28 @@ async function calculateDirectorySize(dirPath) {
       }
     }
   }
-  
+
   await calculateSize(dirPath)
   return totalSize
 }
 
-async function calculateRemoteDirectorySize(dirPath) {
+async function calculateRemoteDirectorySize(sftp, dirPath) {
   let totalSize = 0
-  
+
   async function calculateSize(path) {
-    return new Promise((resolve, reject) => {
-      sftpClient.list(path, async (err, entries) => {
-        if (err) {
-          reject(err)
-          return
-        }
-        
-        for (const entry of entries) {
-          const fullPath = `${path.replace(/\/$/, '')}/${entry.name}`
-          
-          if (entry.type === 'd') {
-            await calculateSize(fullPath)
-          } else {
-            totalSize += entry.size || 0
-          }
-        }
-        
-        resolve()
-      })
-    })
+    const entries = await sftp.list(path)
+
+    for (const entry of entries) {
+      const fullPath = `${path.replace(/\/$/, '')}/${entry.name}`
+
+      if (entry.type === 'd') {
+        await calculateSize(fullPath)
+      } else {
+        totalSize += entry.size || 0
+      }
+    }
   }
-  
+
   await calculateSize(dirPath)
   return totalSize
 }

@@ -328,6 +328,11 @@ export class DatabaseService {
     stmt.run(id)
   }
 
+  async clearTransferHistory(): Promise<void> {
+    const stmt = this.db.prepare('DELETE FROM transfer_queue')
+    stmt.run()
+  }
+
   async saveKnownHost(host: string, port: number, algorithm: string, keyType: string, keyData: string, fingerprint: string): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO known_hosts

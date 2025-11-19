@@ -49,6 +49,7 @@ export interface ElectronAPI {
   pauseTransfer: (id: string) => Promise<any>
   resumeTransfer: (id: string) => Promise<any>
   cancelTransfer: (id: string) => Promise<any>
+  clearTransferHistory: () => Promise<any>
   onTransferProgress: (callback: (progress: any) => void) => void
   onTransferComplete: (callback: (result: any) => void) => void
   

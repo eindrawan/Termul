@@ -22,6 +22,7 @@ type TransferAction =
     | { type: 'SET_QUEUE'; payload: TransferItem[] }
     | { type: 'UPDATE_TRANSFER'; payload: TransferItem }
     | { type: 'ADD_TRANSFER'; payload: TransferItem }
+    | { type: 'ADD_TRANSFERS'; payload: TransferItem[] }
     | { type: 'REMOVE_TRANSFER'; payload: string }
 
 const initialState: TransferState = {
@@ -63,7 +64,26 @@ function transferReducer(state: TransferState, action: TransferAction): Transfer
                 }
             }
         case 'UPDATE_TRANSFER':
-            const updatedQueue = state.queue.map(t => t.id === action.payload.id ? action.payload : t)
+            // Check if transfer exists in queue
+            const existingTransferIndex = state.queue.findIndex(t => t.id === action.payload.id)
+
+            let updatedQueue: TransferItem[]
+
+            if (existingTransferIndex !== -1) {
+                // Update existing transfer
+                updatedQueue = state.queue.map(t => t.id === action.payload.id ? { ...t, ...action.payload } : t)
+            } else {
+                // Add new transfer if it doesn't exist (handling race condition where update arrives before queue refresh)
+                // Only add if it looks like a valid transfer object (has required fields)
+                if (action.payload.sourcePath && action.payload.destinationPath) {
+                    updatedQueue = [...state.queue, action.payload as TransferItem]
+                } else {
+                    // If it's just a partial update for an unknown transfer, we can't add it properly
+                    // But we should try to fetch the queue to get in sync
+                    return state
+                }
+            }
+
             const updatedActiveTransfers = updatedQueue.filter(t => t.status === 'active' || t.status === 'pending')
             const updatedCompletedTransfers = updatedQueue.filter(t => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled')
 
@@ -88,6 +108,11 @@ function transferReducer(state: TransferState, action: TransferAction): Transfer
                 }
             }
         case 'ADD_TRANSFER':
+            // Avoid duplicates
+            if (state.queue.some(t => t.id === action.payload.id)) {
+                return state
+            }
+
             const newQueue = [...state.queue, action.payload]
             const newActiveTransfers = [...state.activeTransfers, action.payload]
 
@@ -101,6 +126,29 @@ function transferReducer(state: TransferState, action: TransferAction): Transfer
                     totalCount: newQueue.length,
                     currentFile: action.payload.sourcePath.split(/[/\\]/).pop(),
                     overallProgress: newQueue.reduce((sum, t) => sum + t.progress, 0) / newQueue.length
+                }
+            }
+        case 'ADD_TRANSFERS':
+            // Filter out duplicates
+            const uniqueNewTransfers = action.payload.filter(newT => !state.queue.some(existingT => existingT.id === newT.id))
+
+            if (uniqueNewTransfers.length === 0) {
+                return state
+            }
+
+            const queueWithNew = [...state.queue, ...uniqueNewTransfers]
+            const activeWithNew = [...state.activeTransfers, ...uniqueNewTransfers]
+
+            return {
+                ...state,
+                queue: queueWithNew,
+                activeTransfers: activeWithNew,
+                transferProgress: {
+                    isActive: true,
+                    activeCount: activeWithNew.length,
+                    totalCount: queueWithNew.length,
+                    currentFile: uniqueNewTransfers[0].sourcePath.split(/[/\\]/).pop(),
+                    overallProgress: queueWithNew.reduce((sum, t) => sum + t.progress, 0) / queueWithNew.length
                 }
             }
         case 'REMOVE_TRANSFER':
@@ -140,11 +188,16 @@ const TransferContext = createContext<{
     pauseMutation: any
     resumeMutation: any
     cancelMutation: any
+    refetchQueue: any
 } | null>(null)
 
 export function TransferProvider({ children }: { children: React.ReactNode }) {
     const [state, dispatch] = useReducer(transferReducer, initialState)
     const queryClient = useQueryClient()
+
+    const refetchTransferQueue = () => {
+        queryClient.refetchQueries({ queryKey: ['transfer-queue'] })
+    }
 
     // Query for transfer queue
     const { data: queue = [], refetch: refetchQueue } = useQuery({
@@ -162,7 +215,11 @@ export function TransferProvider({ children }: { children: React.ReactNode }) {
     // Mutation for enqueuing transfers
     const enqueueMutation = useMutation({
         mutationFn: (transfers: TransferDescriptor[]) => window.electronAPI.enqueueTransfers(transfers),
-        onSuccess: () => {
+        onSuccess: (data) => {
+            // Optimistically add to state to avoid race condition with progress events
+            if (data && Array.isArray(data)) {
+                dispatch({ type: 'ADD_TRANSFERS', payload: data })
+            }
             refetchQueue()
         },
     })
@@ -232,6 +289,7 @@ export function TransferProvider({ children }: { children: React.ReactNode }) {
                 pauseMutation,
                 resumeMutation,
                 cancelMutation,
+                refetchQueue: refetchTransferQueue,
             }}
         >
             {children}

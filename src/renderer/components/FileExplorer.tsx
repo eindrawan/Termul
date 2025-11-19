@@ -392,6 +392,16 @@ export default function FileExplorer({
         setContextMenu(null)
     }
 
+    // Listen for bulk delete progress
+    useEffect(() => {
+        const removeListener = window.electronAPI.onBulkDeleteProgress((progress) => {
+            updateDeletionProgress(progress.current, progress.currentFile)
+        })
+        return () => {
+            removeListener?.()
+        }
+    }, [updateDeletionProgress])
+
     const performDelete = async (file: FileSystemEntry, skipConfirmation = false) => {
         try {
             // For bulk operations, don't manage progress here (it's handled by ContextMenu)
@@ -401,10 +411,19 @@ export default function FileExplorer({
                 updateDeletionProgress(0, file.name)
             }
 
+            // Use optimized bulk deletion service even for single files for consistency
             if (isLocal) {
-                await window.electronAPI.deleteLocalFile(file.path)
+                const result = await window.electronAPI.bulkDeleteLocal([file])
+
+                if (!skipConfirmation && result.failedCount > 0) {
+                    throw new Error(result.failedFiles[0]?.error || 'Unknown error')
+                }
             } else if (connectionId) {
-                await window.electronAPI.deleteRemoteFile(connectionId, file.path)
+                const result = await window.electronAPI.bulkDeleteRemote(connectionId, [file])
+
+                if (!skipConfirmation && result.failedCount > 0) {
+                    throw new Error(result.failedFiles[0]?.error || 'Unknown error')
+                }
             }
 
             // For single file operations, update progress to complete

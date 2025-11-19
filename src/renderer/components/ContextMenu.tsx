@@ -136,54 +136,53 @@ export default function ContextMenu({
     const performBulkDelete = async () => {
         // Start deletion progress for bulk operation
         startDeletion(selectedFiles.length)
-        let completedCount = 0
-        let failedCount = 0
-        const failedFiles: string[] = []
 
         try {
-            // Delete files one by one with progress updates
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i]
-                updateDeletionProgress(i, file.name)
+            let result
 
-                try {
-                    // Pass skipConfirmation=true to avoid double confirmations
-                    await onDelete(file, true)
-                    completedCount++
-                } catch (error) {
-                    console.error(`Failed to delete ${file.name}:`, error)
-                    failedCount++
-                    failedFiles.push(file.name)
-                }
-
-                // Update progress after each file (success or failure)
-                updateDeletionProgress(i + 1)
+            // Use optimized bulk deletion service
+            if (isLocal) {
+                result = await window.electronAPI.bulkDeleteLocal(
+                    selectedFiles,
+                    (progress: { current: number; total: number; currentFile: string }) => {
+                        updateDeletionProgress(progress.current, progress.currentFile)
+                    }
+                )
+            } else {
+                result = await window.electronAPI.bulkDeleteRemote(
+                    connectionId!,
+                    selectedFiles,
+                    (progress: { current: number; total: number; currentFile: string }) => {
+                        updateDeletionProgress(progress.current, progress.currentFile)
+                    }
+                )
             }
 
             // Refresh the file list after bulk deletion
             const queryKey = isLocal ? 'local-files' : 'remote-files'
             queryClient.invalidateQueries({ queryKey: [queryKey] })
 
-            // Show results to user
-            if (failedCount === 0) {
+            // Show detailed results to user
+            const successRate = Math.round((result.deletedCount / selectedFiles.length) * 100)
+            if (result.failedCount === 0) {
                 // All files deleted successfully
                 setAlertDialog({
                     isOpen: true,
-                    message: `Successfully deleted ${completedCount} file${completedCount !== 1 ? 's' : ''}.`,
+                    message: `✅ Successfully deleted ${result.deletedCount} file${result.deletedCount !== 1 ? 's' : ''} using optimized bulk deletion.`,
                     variant: 'success'
                 })
-            } else if (completedCount === 0) {
+            } else if (result.deletedCount === 0) {
                 // All files failed to delete
                 setAlertDialog({
                     isOpen: true,
-                    message: `Failed to delete ${failedCount} file${failedCount !== 1 ? 's' : ''}: ${failedFiles.join(', ')}`,
+                    message: `❌ Failed to delete all ${result.failedCount} file${result.failedCount !== 1 ? 's' : ''}: ${result.failedFiles.map((f: { path: string; error: string }) => f.path.split('/').pop() || f.path).join(', ')}`,
                     variant: 'error'
                 })
             } else {
                 // Partial success
                 setAlertDialog({
                     isOpen: true,
-                    message: `Deleted ${completedCount} file${completedCount !== 1 ? 's' : ''}. Failed to delete ${failedCount} file${failedCount !== 1 ? 's' : ''}: ${failedFiles.join(', ')}`,
+                    message: `⚠️ Partially completed: Deleted ${result.deletedCount} of ${selectedFiles.length} files (${successRate}% success rate). Failed: ${result.failedFiles.map((f: { path: string; error: string }) => f.path.split('/').pop() || f.path).join(', ')}`,
                     variant: 'warning'
                 })
             }
@@ -191,7 +190,7 @@ export default function ContextMenu({
             console.error('Bulk deletion error:', error)
             setAlertDialog({
                 isOpen: true,
-                message: `An unexpected error occurred during bulk deletion: ${error}`,
+                message: `❌ An unexpected error occurred during bulk deletion: ${error}`,
                 variant: 'error'
             })
         } finally {
