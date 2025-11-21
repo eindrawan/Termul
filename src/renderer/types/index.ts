@@ -58,6 +58,7 @@ export interface ActiveConnection {
   remotePath: string
   localPath?: string
   terminalSession?: TerminalSession
+  activePluginId?: string
 }
 
 export interface TerminalSession {

@@ -19,6 +19,7 @@ type ConnectionAction =
     | { type: 'SET_CURRENT_CONNECTION'; payload: string | undefined }
     | { type: 'UPDATE_REMOTE_PATH'; payload: { connectionId: string; remotePath: string } }
     | { type: 'UPDATE_LOCAL_PATH'; payload: { connectionId: string; localPath: string } }
+    | { type: 'SET_ACTIVE_PLUGIN'; payload: { connectionId: string; pluginId: string } }
     | { type: 'SET_LOADING'; payload: boolean }
 
 const initialState: ConnectionState = {
@@ -85,6 +86,20 @@ function connectionReducer(state: ConnectionState, action: ConnectionAction): Co
             }
             return { ...state, activeConnections: newConnections }
         }
+        case 'SET_ACTIVE_PLUGIN': {
+            const newConnections = new Map(state.activeConnections)
+            const connection = newConnections.get(action.payload.connectionId)
+            if (connection) {
+                newConnections.set(action.payload.connectionId, {
+                    ...connection,
+                    activePluginId: action.payload.pluginId
+                })
+                // Save plugin to database using profile ID
+                window.electronAPI.saveConnectionPlugin(connection.profile.id || '', action.payload.pluginId)
+                    .catch(error => console.warn('Failed to save active plugin:', error))
+            }
+            return { ...state, activeConnections: newConnections }
+        }
         case 'SET_LOADING':
             return { ...state, isLoading: action.payload }
         default:
@@ -133,10 +148,12 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         onSuccess: async (result: { connectionId: string; status: ConnectionStatus }, profile) => {
             // Try to load saved paths for this profile
             let savedPaths: { local?: string; remote?: string } = {}
+            let savedPluginId: string | null = null
             try {
                 savedPaths = await window.electronAPI.getAllConnectionPaths(profile.id || '')
+                savedPluginId = await window.electronAPI.getConnectionPlugin(profile.id || '')
             } catch (error) {
-                console.warn('Failed to load saved paths:', error)
+                console.warn('Failed to load saved paths or plugin:', error)
             }
 
             const newConnection: ActiveConnection = {
@@ -144,7 +161,8 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
                 profile,
                 status: result.status,
                 remotePath: savedPaths.remote || '/',
-                localPath: savedPaths.local || undefined
+                localPath: savedPaths.local || undefined,
+                activePluginId: savedPluginId || 'file-manager'
             }
             dispatch({ type: 'ADD_CONNECTION', payload: newConnection })
         },

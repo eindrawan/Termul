@@ -1,3 +1,5 @@
+import { FileSystemEntry } from './index'
+
 // Type definitions for the Electron API exposed to the renderer process
 export interface ElectronAPI {
   // Connection management
@@ -5,7 +7,7 @@ export interface ElectronAPI {
   disconnectFromHost: (connectionId: string) => Promise<any>
   getConnectionStatus: (connectionId: string) => Promise<any>
   onConnectionStatusChange: (callback: (status: any) => void) => void
-  
+
   // Profile management
   saveProfile: (profile: any) => Promise<any>
   getProfiles: () => Promise<any>
@@ -16,12 +18,16 @@ export interface ElectronAPI {
   onShowPassphrasePrompt: (callback: (data: { keyPath: string }) => void) => void
   submitPassphrase: (passphrase: string) => void
   cancelPassphrasePrompt: () => void
-  
+
   // Connection path management
   saveConnectionPath: (profileId: string, pathType: 'local' | 'remote', path: string) => Promise<void>
   getConnectionPath: (profileId: string, pathType: 'local' | 'remote') => Promise<string | null>
   getAllConnectionPaths: (profileId: string) => Promise<{ local?: string; remote?: string }>
-  
+  saveConnectionPlugin: (profileId: string, pluginId: string) => Promise<void>
+  getConnectionPlugin: (profileId: string) => Promise<string | null>
+  saveSetting: (key: string, value: string) => Promise<void>
+  getSetting: (key: string) => Promise<string | null>
+
   // File system operations
   listLocalFiles: (path: string) => Promise<any>
   listRemoteFiles: (connectionId: string, path: string) => Promise<any>
@@ -32,17 +38,17 @@ export interface ElectronAPI {
   writeLocalFile: (path: string, content: string) => Promise<any>
   readRemoteFile: (connectionId: string, path: string) => Promise<string>
   writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
-  
+
   // File creation operations
   createLocalDirectory: (path: string) => Promise<any>
   createRemoteDirectory: (connectionId: string, path: string) => Promise<any>
   createLocalFile: (path: string, content?: string) => Promise<any>
   createRemoteFile: (connectionId: string, path: string, content?: string) => Promise<any>
-  
+
   // File rename operations
   renameLocalFile: (oldPath: string, newPath: string) => Promise<any>
   renameRemoteFile: (connectionId: string, oldPath: string, newPath: string) => Promise<any>
-  
+
   // Transfer operations
   enqueueTransfers: (transfers: any[]) => Promise<any>
   getTransferQueue: () => Promise<any>
@@ -52,7 +58,7 @@ export interface ElectronAPI {
   clearTransferHistory: () => Promise<any>
   onTransferProgress: (callback: (progress: any) => void) => void
   onTransferComplete: (callback: (result: any) => void) => void
-  
+
   // Terminal operations
   openTerminal: (connectionId: string) => Promise<any>
   closeTerminal: (connectionId: string) => Promise<any>
@@ -61,23 +67,33 @@ export interface ElectronAPI {
   onTerminalOutput: (callback: (data: { connectionId: string; data: string }) => void) => void
   onTerminalSessionUpdate: (callback: (data: { connectionId: string; session: any }) => void) => void
   onTerminalError: (callback: (data: { connectionId: string; error: string }) => void) => void
-  
+
   // Bookmark management
   saveBookmark: (bookmark: any) => Promise<any>
   getBookmarks: (profileId: string) => Promise<any>
   deleteBookmark: (id: string) => Promise<any>
   getBookmark: (id: string) => Promise<any>
-  
+
   // Terminal bookmark management
   saveTerminalBookmark: (bookmark: any) => Promise<any>
   getTerminalBookmarks: (profileId: string) => Promise<any>
   deleteTerminalBookmark: (id: string) => Promise<any>
   getTerminalBookmark: (id: string) => Promise<any>
-  
+
   // Utility functions
   showOpenDialog: (options: any) => Promise<any>
   showSaveDialog: (options: any) => Promise<any>
-  
+
+  // File History
+  getFileHistory: () => Promise<any[]>
+  clearFileHistory: () => Promise<void>
+  removeFileHistoryItem: (id: string) => Promise<void>
+
+  // Bulk Operations
+  onBulkDeleteProgress: (callback: (progress: { current: number; total: number; currentFile: string }) => void) => () => void
+  bulkDeleteLocal: (files: FileSystemEntry[]) => Promise<{ successCount: number; failedCount: number; failedFiles: { file: FileSystemEntry; error: string }[] }>
+  bulkDeleteRemote: (connectionId: string, files: FileSystemEntry[]) => Promise<{ successCount: number; failedCount: number; failedFiles: { file: FileSystemEntry; error: string }[] }>
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }
@@ -88,4 +104,4 @@ declare global {
   }
 }
 
-export {}
+export { }

@@ -64,6 +64,9 @@ export interface ElectronAPI {
   clearFileHistory: () => Promise<void>
   removeFileHistoryItem: (id: string) => Promise<void>
 
+  // App lifecycle
+  appReady: () => void
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }

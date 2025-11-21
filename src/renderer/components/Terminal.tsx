@@ -13,20 +13,22 @@ import { DocumentDuplicateIcon, ClipboardIcon, BookmarkIcon, BookOpenIcon } from
 
 interface TerminalProps {
     connectionId: string
+    isActive: boolean
 }
 
-export default function Terminal({ connectionId }: TerminalProps) {
+export default function Terminal({ connectionId, isActive }: TerminalProps) {
     const terminalRef = useRef<HTMLDivElement>(null)
     const xtermRef = useRef<XTerm | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
     const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
     const lastProcessedIndexRef = useRef<number>(-1) // Track the last processed output index
     const { state: connectionState } = useConnection()
-    const { state: terminalState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
+    const { getSessionState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
     const { theme } = useTheme()
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
+    const terminalState = getSessionState(connectionId)
 
     const [alertDialog, setAlertDialog] = useState<{
         isOpen: boolean
@@ -137,15 +139,15 @@ export default function Terminal({ connectionId }: TerminalProps) {
 
         // Handle window resize
         const handleResize = () => {
-            if (fitAddonRef.current && xtermRef.current) {
+            if (fitAddonRef.current && xtermRef.current && terminalRef.current) {
+                // Only fit if the terminal is actually visible
+                if (terminalRef.current.offsetParent === null) {
+                    return
+                }
+
                 try {
                     fitAddonRef.current.fit()
-
-                    setTimeout(() => {
-                        if (fitAddonRef.current && xtermRef.current) fitAddonRef.current.fit()
-                    }, 1000)
                     // The onResize event will be triggered automatically by xterm
-                    // console.log('[Terminal] Resized - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
                 } catch (error) {
                     console.error('[Terminal] Error during resize:', error)
                 }
@@ -174,6 +176,23 @@ export default function Terminal({ connectionId }: TerminalProps) {
             webLinksAddonRef.current = null
         }
     }, [])
+
+    // Handle active state change
+    useEffect(() => {
+        if (isActive && fitAddonRef.current && xtermRef.current && terminalRef.current) {
+            // Use requestAnimationFrame to ensure the DOM has updated and the element is visible
+            requestAnimationFrame(() => {
+                if (fitAddonRef.current && xtermRef.current && terminalRef.current?.offsetParent) {
+                    try {
+                        fitAddonRef.current.fit()
+                        console.log('[Terminal] Fitted after becoming active - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
+                    } catch (error) {
+                        console.error('[Terminal] Error during fit after becoming active:', error)
+                    }
+                }
+            })
+        }
+    }, [isActive])
 
     // Handle terminal output
     useEffect(() => {
@@ -218,17 +237,17 @@ export default function Terminal({ connectionId }: TerminalProps) {
             }
 
             // Clear the error after showing the dialog
-            clearError()
+            clearError(connectionId)
         }
     }, [terminalState.error, terminalState.isConnected, connectionId, closeMutation, clearError])
 
-    // Auto-open terminal when connected
+    // Auto-open terminal when connected and active
     useEffect(() => {
-        if (isConnected && !terminalState.isConnected && !openMutation.isPending) {
+        if (isConnected && !terminalState.isConnected && !openMutation.isPending && isActive) {
             // console.log('[Terminal] Auto-opening terminal for connection:', connectionId)
             openMutation.mutate(connectionId)
         }
-    }, [isConnected, terminalState.isConnected, connectionId])
+    }, [isConnected, terminalState.isConnected, connectionId, isActive])
 
     // Handle terminal visibility changes
     useEffect(() => {

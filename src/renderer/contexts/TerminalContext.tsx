@@ -1,57 +1,120 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { TerminalSession } from '../types'
 import { useMutation } from '@tanstack/react-query'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
-interface TerminalState {
+interface TerminalSessionState {
     session?: TerminalSession
     output: string[]
     isConnected: boolean
     error?: string
+}
+
+interface TerminalState {
+    sessions: Record<string, TerminalSessionState>
     maxOutputLines: number // Maximum number of output lines to keep in memory
 }
 
 type TerminalAction =
-    | { type: 'SET_SESSION'; payload: TerminalSession | undefined }
-    | { type: 'SET_OUTPUT'; payload: string[] }
-    | { type: 'ADD_OUTPUT'; payload: string }
-    | { type: 'SET_CONNECTED'; payload: boolean }
-    | { type: 'SET_ERROR'; payload: string | undefined }
+    | { type: 'SET_SESSION'; payload: { connectionId: string; session: TerminalSession | undefined } }
+    | { type: 'SET_OUTPUT'; payload: { connectionId: string; output: string[] } }
+    | { type: 'ADD_OUTPUT'; payload: { connectionId: string; data: string } }
+    | { type: 'SET_CONNECTED'; payload: { connectionId: string; connected: boolean } }
+    | { type: 'SET_ERROR'; payload: { connectionId: string; error: string | undefined } }
+    | { type: 'INIT_SESSION'; payload: { connectionId: string } }
 
 const initialState: TerminalState = {
+    sessions: {},
+    maxOutputLines: 1000,
+}
+
+const initialSessionState: TerminalSessionState = {
     output: [],
     isConnected: false,
-    maxOutputLines: 1000, // Keep last 1000 output chunks to prevent memory issues
 }
 
 function terminalReducer(state: TerminalState, action: TerminalAction): TerminalState {
+    const connectionId = action.payload.connectionId
+    const currentSessionState = state.sessions[connectionId] || initialSessionState
+
     switch (action.type) {
+        case 'INIT_SESSION':
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: { ...initialSessionState }
+                }
+            }
         case 'SET_SESSION':
             console.log('[TerminalReducer] SET_SESSION:', action.payload)
-            return { ...state, session: action.payload }
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: {
+                        ...currentSessionState,
+                        session: action.payload.session
+                    }
+                }
+            }
         case 'SET_OUTPUT':
-            console.log('[TerminalReducer] SET_OUTPUT:', action.payload.length, 'items')
-            // Trim output if it exceeds maxOutputLines
-            const trimmedOutput = action.payload.length > state.maxOutputLines
-                ? action.payload.slice(-state.maxOutputLines)
-                : action.payload
-            return { ...state, output: trimmedOutput }
+            console.log('[TerminalReducer] SET_OUTPUT:', action.payload.output.length, 'items')
+            const trimmedOutput = action.payload.output.length > state.maxOutputLines
+                ? action.payload.output.slice(-state.maxOutputLines)
+                : action.payload.output
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: {
+                        ...currentSessionState,
+                        output: trimmedOutput
+                    }
+                }
+            }
         case 'ADD_OUTPUT':
-            console.log('[TerminalReducer] ADD_OUTPUT:', JSON.stringify(action.payload))
-            let newOutput = [...state.output, action.payload]
+            // console.log('[TerminalReducer] ADD_OUTPUT:', JSON.stringify(action.payload))
+            let newOutput = [...currentSessionState.output, action.payload.data]
             // Trim output if it exceeds maxOutputLines
             if (newOutput.length > state.maxOutputLines) {
                 newOutput = newOutput.slice(-state.maxOutputLines)
-                console.log('[TerminalReducer] Output trimmed to max lines:', state.maxOutputLines)
+                // console.log('[TerminalReducer] Output trimmed to max lines:', state.maxOutputLines)
             }
-            console.log('[TerminalReducer] New output array length:', newOutput.length)
-            return { ...state, output: newOutput }
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: {
+                        ...currentSessionState,
+                        output: newOutput
+                    }
+                }
+            }
         case 'SET_CONNECTED':
             console.log('[TerminalReducer] SET_CONNECTED:', action.payload)
-            return { ...state, isConnected: action.payload }
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: {
+                        ...currentSessionState,
+                        isConnected: action.payload.connected
+                    }
+                }
+            }
         case 'SET_ERROR':
             console.log('[TerminalReducer] SET_ERROR:', action.payload)
-            return { ...state, error: action.payload }
+            return {
+                ...state,
+                sessions: {
+                    ...state.sessions,
+                    [connectionId]: {
+                        ...currentSessionState,
+                        error: action.payload.error
+                    }
+                }
+            }
         default:
             return state
     }
@@ -63,7 +126,8 @@ const TerminalContext = createContext<{
     openMutation: any
     closeMutation: any
     sendInputMutation: any
-    clearError: () => void
+    clearError: (connectionId: string) => void
+    getSessionState: (connectionId: string) => TerminalSessionState
 } | null>(null)
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
@@ -72,19 +136,19 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     // Mutation for opening terminal
     const openMutation = useMutation({
         mutationFn: (connectionId: string) => window.electronAPI.openTerminal(connectionId),
-        onSuccess: (session: TerminalSession) => {
-            dispatch({ type: 'SET_SESSION', payload: session })
-            dispatch({ type: 'SET_CONNECTED', payload: true })
+        onSuccess: (session: TerminalSession, variables) => {
+            dispatch({ type: 'SET_SESSION', payload: { connectionId: variables, session } })
+            dispatch({ type: 'SET_CONNECTED', payload: { connectionId: variables, connected: true } })
         },
     })
 
     // Mutation for closing terminal
     const closeMutation = useMutation({
         mutationFn: (connectionId: string) => window.electronAPI.closeTerminal(connectionId),
-        onSuccess: () => {
-            dispatch({ type: 'SET_SESSION', payload: undefined })
-            dispatch({ type: 'SET_CONNECTED', payload: false })
-            dispatch({ type: 'SET_OUTPUT', payload: [] })
+        onSuccess: (_, variables) => {
+            dispatch({ type: 'SET_SESSION', payload: { connectionId: variables, session: undefined } })
+            dispatch({ type: 'SET_CONNECTED', payload: { connectionId: variables, connected: false } })
+            dispatch({ type: 'SET_OUTPUT', payload: { connectionId: variables, output: [] } })
         },
     })
 
@@ -99,22 +163,22 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
         console.log('[TerminalContext] Setting up terminal output listener')
 
         const handleOutput = (data: { connectionId: string; data: string }) => {
-            console.log('[TerminalContext] Received output from backend:', JSON.stringify(data))
-            dispatch({ type: 'ADD_OUTPUT', payload: data.data })
+            // console.log('[TerminalContext] Received output from backend:', JSON.stringify(data))
+            dispatch({ type: 'ADD_OUTPUT', payload: { connectionId: data.connectionId, data: data.data } })
         }
 
         const handleSessionUpdate = (data: { connectionId: string; session: any }) => {
             console.log('[TerminalContext] Session update received:', data)
             if (data.session) {
-                dispatch({ type: 'SET_SESSION', payload: data.session })
-                dispatch({ type: 'SET_CONNECTED', payload: data.session.connected })
+                dispatch({ type: 'SET_SESSION', payload: { connectionId: data.connectionId, session: data.session } })
+                dispatch({ type: 'SET_CONNECTED', payload: { connectionId: data.connectionId, connected: data.session.connected } })
             }
         }
 
         const handleError = (data: { connectionId: string; error: string }) => {
             console.log('[TerminalContext] Terminal error received:', data)
-            dispatch({ type: 'SET_ERROR', payload: data.error })
-            dispatch({ type: 'SET_CONNECTED', payload: false })
+            dispatch({ type: 'SET_ERROR', payload: { connectionId: data.connectionId, error: data.error } })
+            dispatch({ type: 'SET_CONNECTED', payload: { connectionId: data.connectionId, connected: false } })
         }
 
         // Set up listeners
@@ -131,9 +195,13 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     // Function to clear error state
-    const clearError = () => {
-        dispatch({ type: 'SET_ERROR', payload: undefined })
-    }
+    const clearError = useCallback((connectionId: string) => {
+        dispatch({ type: 'SET_ERROR', payload: { connectionId, error: undefined } })
+    }, [])
+
+    const getSessionState = useCallback((connectionId: string) => {
+        return state.sessions[connectionId] || initialSessionState
+    }, [state.sessions])
 
     return (
         <TerminalContext.Provider
@@ -144,6 +212,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
                 closeMutation,
                 sendInputMutation,
                 clearError,
+                getSessionState
             }}
         >
             {children}

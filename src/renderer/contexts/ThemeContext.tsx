@@ -23,15 +23,38 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-    const [theme, setThemeState] = useState<Theme>(() => {
-        // Check localStorage for saved theme preference
-        const savedTheme = localStorage.getItem('theme') as Theme | null
-        return savedTheme || 'light' // Default to light theme
-    })
+    const [theme, setThemeState] = useState<Theme>('light')
 
     useEffect(() => {
-        // Update localStorage when theme changes
+        const loadTheme = async () => {
+            try {
+                const savedTheme = await window.electronAPI.getSetting('theme')
+                if (savedTheme === 'dark' || savedTheme === 'light') {
+                    setThemeState(savedTheme)
+                } else {
+                    // Fallback to localStorage if not found in DB (migration path)
+                    const localTheme = localStorage.getItem('theme') as Theme | null
+                    if (localTheme) {
+                        setThemeState(localTheme)
+                        // Migrate to DB
+                        await window.electronAPI.saveSetting('theme', localTheme)
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load theme:', error)
+            }
+        }
+        loadTheme()
+    }, [])
+
+    useEffect(() => {
+        // Update localStorage as backup
         localStorage.setItem('theme', theme)
+
+        // Save to DB
+        window.electronAPI.saveSetting('theme', theme).catch(err =>
+            console.error('Failed to save theme:', err)
+        )
 
         // Update document class for CSS targeting
         document.documentElement.classList.remove('light', 'dark')

@@ -198,6 +198,43 @@ export function setupIpcHandlers() {
     }
   })
 
+  ipcMain.handle('save-connection-plugin', async (_, profileId: string, pluginId: string) => {
+    try {
+      return await connectionService.saveConnectionPlugin(profileId, pluginId)
+    } catch (error) {
+      console.error('Save connection plugin error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-connection-plugin', async (_, profileId: string) => {
+    try {
+      return await connectionService.getConnectionPlugin(profileId)
+    } catch (error) {
+      console.error('Get connection plugin error:', error)
+      throw error
+    }
+  })
+
+  // Settings handlers
+  ipcMain.handle('save-setting', async (_, key: string, value: string) => {
+    try {
+      return await db.saveSetting(key, value)
+    } catch (error) {
+      console.error('Save setting error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-setting', async (_, key: string) => {
+    try {
+      return await db.getSetting(key)
+    } catch (error) {
+      console.error('Get setting error:', error)
+      throw error
+    }
+  })
+
   // File system handlers
   ipcMain.handle('list-local-files', async (_, path) => {
     try {

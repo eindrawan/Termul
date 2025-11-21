@@ -6,6 +6,7 @@ import { TerminalProvider } from './contexts/TerminalContext'
 import { DeletionProvider } from './contexts/DeletionContext'
 import { WindowManagerProvider } from './contexts/WindowManagerContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { PluginProvider } from './contexts/PluginContext'
 import MainLayout from './components/MainLayout'
 
 const queryClient = new QueryClient({
@@ -18,6 +19,11 @@ const queryClient = new QueryClient({
 })
 
 function App() {
+    React.useEffect(() => {
+        // Signal that the app is ready to be shown
+        window.electronAPI.appReady()
+    }, [])
+
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
@@ -26,7 +32,9 @@ function App() {
                         <TerminalProvider>
                             <DeletionProvider>
                                 <WindowManagerProvider>
-                                    <MainLayout />
+                                    <PluginProvider>
+                                        <MainLayout />
+                                    </PluginProvider>
                                 </WindowManagerProvider>
                             </DeletionProvider>
                         </TerminalProvider>

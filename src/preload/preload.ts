@@ -93,6 +93,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllConnectionPaths: (profileId: string) =>
     ipcRenderer.invoke('get-all-connection-paths', profileId),
 
+  saveConnectionPlugin: (profileId: string, pluginId: string) =>
+    ipcRenderer.invoke('save-connection-plugin', profileId, pluginId),
+
+  getConnectionPlugin: (profileId: string) =>
+    ipcRenderer.invoke('get-connection-plugin', profileId),
+
+  // Settings
+  saveSetting: (key: string, value: string) =>
+    ipcRenderer.invoke('save-setting', key, value),
+
+  getSetting: (key: string) =>
+    ipcRenderer.invoke('get-setting', key),
+
   // File system operations
   listLocalFiles: (path: string) =>
     ipcRenderer.invoke('list-local-files', path),
@@ -275,6 +288,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   removeFileHistoryItem: (id: string) =>
     ipcRenderer.invoke('remove-file-history-item', id),
+
+  // App lifecycle
+  appReady: () => ipcRenderer.send('app-ready'),
 })
 
 // Define the ElectronAPI type
@@ -298,6 +314,10 @@ export interface ElectronAPI {
   saveConnectionPath: (connectionId: string, pathType: 'local' | 'remote', path: string) => Promise<void>
   getConnectionPath: (connectionId: string, pathType: 'local' | 'remote') => Promise<string | null>
   getAllConnectionPaths: (connectionId: string) => Promise<{ local?: string; remote?: string }>
+  saveConnectionPlugin: (profileId: string, pluginId: string) => Promise<void>
+  getConnectionPlugin: (profileId: string) => Promise<string | null>
+  saveSetting: (key: string, value: string) => Promise<void>
+  getSetting: (key: string) => Promise<string | null>
 
   // File system operations
   listLocalFiles: (path: string) => Promise<any>
@@ -369,4 +389,5 @@ export interface ElectronAPI {
   getFileHistory: () => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
   clearFileHistory: () => Promise<void>
   removeFileHistoryItem: (id: string) => Promise<void>
+  appReady: () => void
 }

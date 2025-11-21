@@ -31,6 +31,7 @@ interface FileExplorerProps {
     disabled?: boolean
     onUpload?: (files: FileSystemEntry[]) => void
     onDownload?: (files: FileSystemEntry[]) => void
+    isActive?: boolean
 }
 
 export default function FileExplorer({
@@ -45,6 +46,7 @@ export default function FileExplorer({
     disabled = false,
     onUpload,
     onDownload,
+    isActive = true,
 }: FileExplorerProps) {
     const [files, setFiles] = useState<FileSystemEntry[]>([])
     const [sortField, setSortField] = useState<SortField>('name')
@@ -112,7 +114,7 @@ export default function FileExplorer({
                 ? window.electronAPI.listLocalFiles(path)
                 : window.electronAPI.listRemoteFiles(connectionId!, path)
         },
-        enabled: !disabled && (isLocal || !!connectionId),
+        enabled: !disabled && (isLocal || !!connectionId) && isActive,
         retry: 1,
         retryDelay: 1000,
         staleTime: 0, // Always consider data stale to ensure fresh fetches

@@ -147,6 +147,26 @@ export class DatabaseService {
       )
     `)
 
+    // Connection plugins table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS connection_plugins (
+        id TEXT PRIMARY KEY,
+        connection_id TEXT NOT NULL,
+        plugin_id TEXT NOT NULL,
+        updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(connection_id)
+      )
+    `)
+
+    // Settings table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+      )
+    `)
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_status ON transfer_queue(status);
@@ -402,6 +422,46 @@ export class DatabaseService {
     })
 
     return paths
+  }
+
+  async saveConnectionPlugin(profileId: string, pluginId: string): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO connection_plugins
+      (id, connection_id, plugin_id, updated_at)
+      VALUES (?, ?, ?, strftime('%s', 'now'))
+    `)
+
+    const id = `${profileId}-plugin`
+    stmt.run(id, profileId, pluginId)
+  }
+
+  async getConnectionPlugin(profileId: string): Promise<string | null> {
+    const stmt = this.db.prepare(`
+      SELECT plugin_id FROM connection_plugins
+      WHERE connection_id = ?
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `)
+
+    const result = stmt.get(profileId) as any
+    return result ? result.plugin_id : null
+  }
+
+  // Settings methods
+  async saveSetting(key: string, value: string): Promise<void> {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO settings
+      (key, value, updated_at)
+      VALUES (?, ?, strftime('%s', 'now'))
+    `)
+
+    stmt.run(key, value)
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const stmt = this.db.prepare('SELECT value FROM settings WHERE key = ?')
+    const result = stmt.get(key) as any
+    return result ? result.value : null
   }
 
   // Bookmark methods

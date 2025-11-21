@@ -17,18 +17,12 @@ import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 interface FileManagerProps {
     connectionId: string
-    localPath: string
-    onLocalPathChange: (path: string) => void
-    remotePath: string
-    onRemotePathChange: (path: string) => void
+    isActive: boolean
 }
 
 export default function FileManager({
     connectionId,
-    localPath,
-    onLocalPathChange,
-    remotePath,
-    onRemotePathChange
+    isActive
 }: FileManagerProps) {
     const [selectedLocalFiles, setSelectedLocalFiles] = useState<FileSystemEntry[]>([])
     const [selectedRemoteFiles, setSelectedRemoteFiles] = useState<FileSystemEntry[]>([])
@@ -47,9 +41,15 @@ export default function FileManager({
     const { state: connectionState, dispatch } = useConnection()
     const { state: transferState, enqueueMutation, refetchQueue } = useTransfer()
 
+    const connection = connectionState.activeConnections.get(connectionId)
+    const isConnected = connection?.status.connected || false
+
+    // Get paths from connection state
+    const localPath = connection?.localPath || 'C:\\'
+    const remotePath = connection?.remotePath || '/'
+
     // Save local path when it changes
     const handleLocalPathChange = (path: string) => {
-        onLocalPathChange(path)
         if (connectionState.currentConnectionId) {
             dispatch({
                 type: 'UPDATE_LOCAL_PATH',
@@ -59,11 +59,13 @@ export default function FileManager({
     }
 
     const handleRemotePathChange = (path: string) => {
-        onRemotePathChange(path)
+        if (connectionState.currentConnectionId) {
+            dispatch({
+                type: 'UPDATE_REMOTE_PATH',
+                payload: { connectionId: connectionState.currentConnectionId, remotePath: path }
+            })
+        }
     }
-
-    const connection = connectionState.activeConnections.get(connectionId)
-    const isConnected = connection?.status.connected || false
 
     const handleUpload = () => {
         if (selectedLocalFiles.length === 0 || !isConnected) return
@@ -174,8 +176,8 @@ export default function FileManager({
     }
 
     const handleSelectBookmark = (bookmark: Bookmark) => {
-        onLocalPathChange(bookmark.localPath)
-        onRemotePathChange(bookmark.remotePath)
+        handleLocalPathChange(bookmark.localPath)
+        handleRemotePathChange(bookmark.remotePath)
     }
 
     const handleDeleteBookmark = async (id: string) => {
@@ -356,6 +358,7 @@ export default function FileManager({
                             onSelectionChange={setSelectedLocalFiles}
                             isLocal={true}
                             onUpload={handleUpload}
+                            isActive={isActive}
                         />
                     </div>
 
@@ -378,6 +381,7 @@ export default function FileManager({
                             isLocal={false}
                             disabled={!isConnected}
                             onDownload={handleDownload}
+                            isActive={isActive}
                         />
                     </div>
                 </div>
