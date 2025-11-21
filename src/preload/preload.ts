@@ -262,6 +262,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getTerminalBookmark: (id: string) =>
     ipcRenderer.invoke('get-terminal-bookmark', id),
+
+  // File history
+  addFileHistory: (connectionId: string | null, path: string) =>
+    ipcRenderer.invoke('add-file-history', connectionId, path),
+
+  getFileHistory: () =>
+    ipcRenderer.invoke('get-file-history'),
+
+  clearFileHistory: () =>
+    ipcRenderer.invoke('clear-file-history'),
+
+  removeFileHistoryItem: (id: string) =>
+    ipcRenderer.invoke('remove-file-history-item', id),
 })
 
 // Define the ElectronAPI type
@@ -350,4 +363,10 @@ export interface ElectronAPI {
   getTerminalBookmarks: (profileId: string) => Promise<any>
   deleteTerminalBookmark: (id: string) => Promise<any>
   getTerminalBookmark: (id: string) => Promise<any>
+
+  // File history
+  addFileHistory: (connectionId: string | null, path: string) => Promise<void>
+  getFileHistory: () => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
+  clearFileHistory: () => Promise<void>
+  removeFileHistoryItem: (id: string) => Promise<void>
 }

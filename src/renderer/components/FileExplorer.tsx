@@ -21,6 +21,7 @@ type ColumnField = 'name' | 'size' | 'modified' | 'permissions'
 
 interface FileExplorerProps {
     connectionId?: string
+    profileId?: string
     title: string
     path: string
     onPathChange: (path: string) => void
@@ -34,6 +35,7 @@ interface FileExplorerProps {
 
 export default function FileExplorer({
     connectionId,
+    profileId,
     title,
     path,
     onPathChange,
@@ -472,7 +474,7 @@ export default function FileExplorer({
     }
 
     const handleEdit = (file: FileSystemEntry) => {
-        openFileEditor(file, connectionId, isLocal)
+        openFileEditor(file, connectionId, isLocal, profileId)
         handleContextMenuClose()
     }
 

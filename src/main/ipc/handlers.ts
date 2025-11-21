@@ -558,4 +558,42 @@ export function setupIpcHandlers() {
       throw error
     }
   })
+
+  // File history handlers
+  ipcMain.handle('add-file-history', async (_, connectionId: string | null, path: string) => {
+    try {
+      return await db.addFileHistory(connectionId, path)
+    } catch (error) {
+      console.error('Add file history error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-file-history', async () => {
+    try {
+      return await db.getFileHistory()
+    } catch (error) {
+      console.error('Get file history error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('clear-file-history', async () => {
+    try {
+      return await db.clearFileHistory()
+    } catch (error) {
+      console.error('Clear file history error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('remove-file-history-item', async (_, id: string) => {
+    try {
+      const validatedId = z.string().parse(id)
+      return await db.removeFileHistoryItem(validatedId)
+    } catch (error) {
+      console.error('Remove file history item error:', error)
+      throw error
+    }
+  })
 }

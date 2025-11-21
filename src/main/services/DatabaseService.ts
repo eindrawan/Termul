@@ -54,7 +54,7 @@ export class DatabaseService {
       const testStmt = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='connection_profiles'");
       const result: any = testStmt.get();
       const tableSql = result?.sql || '';
-      
+
       // If the old constraint still exists in the table definition, recreate the table
       if (tableSql.includes("CHECK (auth_type IN ('password', 'key'))")) {
         this.updateAuthTypeConstraint();
@@ -136,6 +136,17 @@ export class DatabaseService {
       )
     `)
 
+    // File history table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS file_history (
+        id TEXT PRIMARY KEY,
+        connection_id TEXT,
+        path TEXT NOT NULL,
+        last_opened_at INTEGER DEFAULT (strftime('%s', 'now')),
+        UNIQUE(connection_id, path)
+      )
+    `)
+
     // Create indexes for better performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_transfer_queue_status ON transfer_queue(status);
@@ -144,6 +155,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_connection_paths_connection_id ON connection_paths(connection_id);
       CREATE INDEX IF NOT EXISTS idx_bookmarks_profile_id ON bookmarks(profile_id);
       CREATE INDEX IF NOT EXISTS idx_terminal_bookmarks_profile_id ON terminal_bookmarks(profile_id);
+      CREATE INDEX IF NOT EXISTS idx_file_history_last_opened_at ON file_history(last_opened_at);
     `)
   }
 
@@ -175,9 +187,9 @@ export class DatabaseService {
       SELECT * FROM connection_profiles
       ORDER BY updated_at DESC, name ASC
     `)
-    
+
     const profiles = stmt.all() as any[]
-    
+
     return profiles.map(profile => ({
       id: profile.id,
       name: profile.name,
@@ -199,9 +211,9 @@ export class DatabaseService {
   async getProfile(id: string): Promise<ConnectionProfile | null> {
     const stmt = this.db.prepare('SELECT * FROM connection_profiles WHERE id = ?')
     const profile = stmt.get(id) as any
-    
+
     if (!profile) return null
-    
+
     return {
       id: profile.id,
       name: profile.name,
@@ -276,50 +288,50 @@ export class DatabaseService {
   async updateTransfer(id: string, updates: Partial<TransferItem>): Promise<void> {
     const fields = []
     const values = []
-    
+
     if (updates.status !== undefined) {
       fields.push('status = ?')
       values.push(updates.status)
     }
-    
+
     if (updates.progress !== undefined) {
       fields.push('progress = ?')
       values.push(updates.progress)
     }
-    
+
     if (updates.speed !== undefined) {
       fields.push('speed = ?')
       values.push(updates.speed)
     }
-    
+
     if (updates.eta !== undefined) {
       fields.push('eta = ?')
       values.push(updates.eta)
     }
-    
+
     if (updates.error !== undefined) {
       fields.push('error = ?')
       values.push(updates.error)
     }
-    
+
     if (updates.startedAt !== undefined) {
       fields.push('started_at = ?')
       values.push(updates.startedAt)
     }
-    
+
     if (updates.completedAt !== undefined) {
       fields.push('completed_at = ?')
       values.push(updates.completedAt)
     }
-    
+
     if (fields.length === 0) return
-    
+
     const stmt = this.db.prepare(`
       UPDATE transfer_queue
       SET ${fields.join(', ')}
       WHERE id = ?
     `)
-    
+
     stmt.run(...values, id)
   }
 
@@ -339,7 +351,7 @@ export class DatabaseService {
       (host, port, algorithm, key_type, key_data, fingerprint, first_seen)
       VALUES (?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
     `)
-    
+
     stmt.run(host, port, algorithm, keyType, keyData, fingerprint)
   }
 
@@ -355,7 +367,7 @@ export class DatabaseService {
       (id, connection_id, path_type, path, updated_at)
       VALUES (?, ?, ?, ?, strftime('%s', 'now'))
     `)
-    
+
     const id = `${profileId}-${pathType}`
     stmt.run(id, profileId, pathType, path)
   }
@@ -367,7 +379,7 @@ export class DatabaseService {
       ORDER BY updated_at DESC
       LIMIT 1
     `)
-    
+
     const result = stmt.get(profileId, pathType) as any
     return result ? result.path : null
   }
@@ -377,10 +389,10 @@ export class DatabaseService {
       SELECT path_type, path FROM connection_paths
       WHERE connection_id = ?
     `)
-    
+
     const results = stmt.all(profileId) as any[]
     const paths: { local?: string; remote?: string } = {}
-    
+
     results.forEach(result => {
       if (result.path_type === 'local') {
         paths.local = result.path
@@ -388,7 +400,7 @@ export class DatabaseService {
         paths.remote = result.path
       }
     })
-    
+
     return paths
   }
 
@@ -422,9 +434,9 @@ export class DatabaseService {
       WHERE profile_id = ?
       ORDER BY created_at DESC
     `)
-    
+
     const bookmarks = stmt.all(profileId) as any[]
-    
+
     return bookmarks.map(bookmark => ({
       id: bookmark.id,
       profileId: bookmark.profile_id,
@@ -443,9 +455,9 @@ export class DatabaseService {
   async getBookmark(id: string): Promise<Bookmark | null> {
     const stmt = this.db.prepare('SELECT * FROM bookmarks WHERE id = ?')
     const bookmark = stmt.get(id) as any
-    
+
     if (!bookmark) return null
-    
+
     return {
       id: bookmark.id,
       profileId: bookmark.profile_id,
@@ -461,7 +473,7 @@ export class DatabaseService {
       SELECT COUNT(*) as count FROM bookmarks
       WHERE profile_id = ? AND local_path = ? AND remote_path = ?
     `)
-    
+
     const result = stmt.get(profileId, localPath, remotePath) as any
     return result.count > 0
   }
@@ -496,9 +508,9 @@ export class DatabaseService {
       WHERE profile_id = ?
       ORDER BY created_at DESC
     `)
-    
+
     const bookmarks = stmt.all(profileId) as any[]
-    
+
     return bookmarks.map(bookmark => ({
       id: bookmark.id,
       profileId: bookmark.profile_id,
@@ -517,9 +529,9 @@ export class DatabaseService {
   async getTerminalBookmark(id: string): Promise<TerminalBookmark | null> {
     const stmt = this.db.prepare('SELECT * FROM terminal_bookmarks WHERE id = ?')
     const bookmark = stmt.get(id) as any
-    
+
     if (!bookmark) return null
-    
+
     return {
       id: bookmark.id,
       profileId: bookmark.profile_id,
@@ -535,9 +547,52 @@ export class DatabaseService {
       SELECT COUNT(*) as count FROM terminal_bookmarks
       WHERE profile_id = ? AND name = ? AND command = ?
     `)
-    
+
     const result = stmt.get(profileId, name, command) as any
     return result.count > 0
+  }
+
+  // File history methods
+  async addFileHistory(connectionId: string | null, path: string): Promise<void> {
+    // Delete any existing entries for this file to ensure no duplicates and clean up old ones
+    // This handles the case where SQLite UNIQUE constraint might allow multiple NULL connection_ids
+    this.db.prepare('DELETE FROM file_history WHERE (connection_id IS ? OR (connection_id IS NULL AND ? IS NULL)) AND path = ?')
+      .run(connectionId, connectionId, path)
+
+    const stmt = this.db.prepare(`
+      INSERT INTO file_history
+      (id, connection_id, path, last_opened_at)
+      VALUES (?, ?, ?, strftime('%s', 'now'))
+    `)
+
+    stmt.run(this.generateId(), connectionId, path)
+  }
+
+  async removeFileHistoryItem(id: string): Promise<void> {
+    const stmt = this.db.prepare('DELETE FROM file_history WHERE id = ?')
+    stmt.run(id)
+  }
+
+  async getFileHistory(): Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM file_history
+      ORDER BY last_opened_at DESC
+      LIMIT 50
+    `)
+
+    const history = stmt.all() as any[]
+
+    return history.map(item => ({
+      id: item.id,
+      connectionId: item.connection_id,
+      path: item.path,
+      lastOpenedAt: item.last_opened_at
+    }))
+  }
+
+  async clearFileHistory(): Promise<void> {
+    const stmt = this.db.prepare('DELETE FROM file_history')
+    stmt.run()
   }
 
   private updateAuthTypeConstraint(): void {
@@ -546,7 +601,7 @@ export class DatabaseService {
     try {
       // Begin transaction
       this.db.exec('BEGIN TRANSACTION');
-      
+
       // Create a temporary table with the new structure
       this.db.exec(`
         CREATE TABLE connection_profiles_new (
@@ -563,7 +618,7 @@ export class DatabaseService {
           updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
       `);
-      
+
       // Copy data from old table to new table
       // Map old 'key' values to 'ssh-key' during the copy
       this.db.exec(`
@@ -585,13 +640,13 @@ export class DatabaseService {
           updated_at
         FROM connection_profiles
       `);
-      
+
       // Drop the old table
       this.db.exec('DROP TABLE connection_profiles');
-      
+
       // Rename the new table to the original name
       this.db.exec('ALTER TABLE connection_profiles_new RENAME TO connection_profiles');
-      
+
       // Commit transaction
       this.db.exec('COMMIT');
     } catch (error) {

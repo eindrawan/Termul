@@ -6,9 +6,11 @@ import FileExplorer from './FileExplorer'
 import BookmarkDialog from './BookmarkDialog'
 import BookmarkList from './BookmarkList'
 import HistoryList from './HistoryList'
+import FileHistoryList from './FileHistoryList'
 import {
     BookmarkIcon as BookmarkHeroIcon,
     BookOpenIcon,
+    ArrowsRightLeftIcon,
     ClockIcon
 } from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
@@ -38,6 +40,9 @@ export default function FileManager({
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
     const [historyListOpen, setHistoryListOpen] = useState(false)
     const [historyListPosition, setHistoryListPosition] = useState({ x: 0, y: 0 })
+    const [fileHistoryListOpen, setFileHistoryListOpen] = useState(false)
+    const [fileHistoryListPosition, setFileHistoryListPosition] = useState({ x: 0, y: 0 })
+    const [fileHistory, setFileHistory] = useState<any[]>([])
 
     const { state: connectionState, dispatch } = useConnection()
     const { state: transferState, enqueueMutation, refetchQueue } = useTransfer()
@@ -206,6 +211,59 @@ export default function FileManager({
         }
     }
 
+    const handleOpenFileHistory = async () => {
+        try {
+            const history = await window.electronAPI.getFileHistory()
+            setFileHistory(history)
+        } catch (error) {
+            console.error('Failed to load file history:', error)
+        }
+    }
+
+    const handleClearFileHistory = async () => {
+        if (confirm('Are you sure you want to clear the opened file history?')) {
+            try {
+                await window.electronAPI.clearFileHistory()
+                setFileHistory([])
+            } catch (error) {
+                console.error('Failed to clear file history:', error)
+                alert('Failed to clear file history')
+            }
+        }
+    }
+
+    const handleOpenFileFromHistory = (path: string, historyProfileId: string | null) => {
+        let activeConnectionId: string | undefined = undefined
+        let isLocal = true
+
+        if (historyProfileId) {
+            // Find active connection with this profile ID
+            const activeConnection = Array.from(connectionState.activeConnections.values())
+                .find(c => c.profile.id === historyProfileId)
+
+            if (!activeConnection || !activeConnection.status.connected) {
+                alert('You must be connected to the correct server to open this file.')
+                return
+            }
+            activeConnectionId = activeConnection.id // This is the session ID
+            isLocal = false
+        }
+
+        const file = {
+            name: path.split(/[/\\]/).pop() || path,
+            path: path,
+            isDirectory: false,
+            size: 0,
+            lastModified: 0,
+            permissions: '',
+            type: 'file'
+        }
+
+        import('./FileEditorManager').then(({ openFileEditor }) => {
+            openFileEditor(file, activeConnectionId, isLocal, historyProfileId || undefined)
+        })
+    }
+
     return (
         <div className="flex flex-col h-full">
             {/* Compact header */}
@@ -255,12 +313,27 @@ export default function FileManager({
                             const rect = e.currentTarget.getBoundingClientRect()
                             setHistoryListPosition({
                                 x: rect.left,
-                                y: rect.bottom
+                                y: rect.bottom + 2
                             })
                             setHistoryListOpen(true)
                         }}
                         className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="View transfer history"
+                        title="Transfer history"
+                    >
+                        <ArrowsRightLeftIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setFileHistoryListPosition({
+                                x: rect.left,
+                                y: rect.bottom + 2
+                            })
+                            handleOpenFileHistory()
+                            setFileHistoryListOpen(true)
+                        }}
+                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Opened files history"
                     >
                         <ClockIcon className="h-4 w-4" />
                     </button>
@@ -272,86 +345,100 @@ export default function FileManager({
 
             {/* File panes container - take remaining space */}
             <div id="file-manager-container" className="flex flex-1 min-h-0 relative">
-                {/* Local File Explorer */}
-                <div
-                    className="border-r dark:border-gray-700 transition-all duration-150"
-                    style={{ width: `${leftPaneWidth}%` }}
-                >
-                    <FileExplorer
-                        title="Local Files"
-                        path={localPath}
-                        onPathChange={handleLocalPathChange}
-                        selectedFiles={selectedLocalFiles}
-                        onSelectionChange={setSelectedLocalFiles}
-                        isLocal={true}
-                        onUpload={handleUpload}
-                    />
-                </div>
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Left Pane (Local) */}
+                    <div style={{ width: `${leftPaneWidth}%` }} className="flex flex-col border-r border-gray-200 dark:border-gray-700">
+                        <FileExplorer
+                            title="Local Files"
+                            path={localPath}
+                            onPathChange={handleLocalPathChange}
+                            selectedFiles={selectedLocalFiles}
+                            onSelectionChange={setSelectedLocalFiles}
+                            isLocal={true}
+                            onUpload={handleUpload}
+                        />
+                    </div>
 
-                {/* Resizer */}
-                <div
-                    className={`w-1 bg-gray-300 dark:bg-gray-600 hover:bg-blue-500 dark:hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors ${isResizing ? 'bg-blue-500 dark:bg-blue-400' : ''
-                        }`}
-                    onMouseDown={handleMouseDown}
-                >
-                    <div className="w-full h-full flex items-center justify-center">
-                        <div className="w-0.5 h-8 bg-gray-400 dark:bg-gray-500 rounded"></div>
+                    {/* Resizer */}
+                    <div
+                        className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors z-10"
+                        onMouseDown={handleMouseDown}
+                    />
+
+                    {/* Right Pane (Remote) */}
+                    <div style={{ width: `${100 - leftPaneWidth}%` }} className="flex flex-col">
+                        <FileExplorer
+                            connectionId={connectionId}
+                            profileId={connection?.profile?.id}
+                            title={connection?.profile?.name || 'Remote Files'}
+                            path={remotePath}
+                            onPathChange={handleRemotePathChange}
+                            selectedFiles={selectedRemoteFiles}
+                            onSelectionChange={setSelectedRemoteFiles}
+                            isLocal={false}
+                            disabled={!isConnected}
+                            onDownload={handleDownload}
+                        />
                     </div>
                 </div>
 
-                {/* Remote File Explorer */}
-                <div
-                    className="transition-all duration-150"
-                    style={{ width: `${100 - leftPaneWidth}%` }}
-                >
-                    <FileExplorer
-                        connectionId={connectionId}
-                        title="Remote Files"
-                        path={remotePath}
-                        onPathChange={handleRemotePathChange}
-                        selectedFiles={selectedRemoteFiles}
-                        onSelectionChange={setSelectedRemoteFiles}
-                        isLocal={false}
-                        disabled={!isConnected}
-                        onDownload={handleDownload}
+                {/* Bookmark Dialog */}
+                {bookmarkDialogOpen && (
+                    <BookmarkDialog
+                        isOpen={bookmarkDialogOpen}
+                        onClose={() => setBookmarkDialogOpen(false)}
+                        onSave={handleSaveBookmark}
+                        profileId={connection?.profile?.id || ''}
+                        localPath={localPath}
+                        remotePath={remotePath}
                     />
-                </div>
+                )}
+
+                {/* Bookmark List */}
+                {bookmarkListOpen && (
+                    <BookmarkList
+                        bookmarks={bookmarks}
+                        onSelectBookmark={handleSelectBookmark}
+                        onDeleteBookmark={handleDeleteBookmark}
+                        onClose={() => setBookmarkListOpen(false)}
+                        x={bookmarkListPosition.x}
+                        y={bookmarkListPosition.y}
+                    />
+                )}
+
+                {/* History List */}
+                {historyListOpen && (
+                    <HistoryList
+                        transfers={transferState.completedTransfers}
+                        onClose={() => setHistoryListOpen(false)}
+                        onClearHistory={handleClearHistory}
+                        x={historyListPosition.x}
+                        y={historyListPosition.y}
+                    />
+                )}
+
+                {/* File History List */}
+                {fileHistoryListOpen && (
+                    <FileHistoryList
+                        history={fileHistory}
+                        onClose={() => setFileHistoryListOpen(false)}
+                        onClearHistory={handleClearFileHistory}
+                        onOpenFile={handleOpenFileFromHistory}
+                        onDelete={async (id) => {
+                            try {
+                                await window.electronAPI.removeFileHistoryItem(id)
+                                // Refresh history
+                                const history = await window.electronAPI.getFileHistory()
+                                setFileHistory(history)
+                            } catch (error) {
+                                console.error('Failed to remove file history item:', error)
+                            }
+                        }}
+                        x={fileHistoryListPosition.x}
+                        y={fileHistoryListPosition.y}
+                    />
+                )}
             </div>
-
-            {/* Bookmark Dialog */}
-            {bookmarkDialogOpen && (
-                <BookmarkDialog
-                    isOpen={bookmarkDialogOpen}
-                    onClose={() => setBookmarkDialogOpen(false)}
-                    onSave={handleSaveBookmark}
-                    profileId={connection?.profile?.id || ''}
-                    localPath={localPath}
-                    remotePath={remotePath}
-                />
-            )}
-
-            {/* Bookmark List */}
-            {bookmarkListOpen && (
-                <BookmarkList
-                    bookmarks={bookmarks}
-                    onSelectBookmark={handleSelectBookmark}
-                    onDeleteBookmark={handleDeleteBookmark}
-                    onClose={() => setBookmarkListOpen(false)}
-                    x={bookmarkListPosition.x}
-                    y={bookmarkListPosition.y}
-                />
-            )}
-
-            {/* History List */}
-            {historyListOpen && (
-                <HistoryList
-                    transfers={transferState.completedTransfers}
-                    onClose={() => setHistoryListOpen(false)}
-                    onClearHistory={handleClearHistory}
-                    x={historyListPosition.x}
-                    y={historyListPosition.y}
-                />
-            )}
         </div>
     )
 }

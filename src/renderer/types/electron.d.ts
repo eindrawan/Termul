@@ -58,6 +58,12 @@ export interface ElectronAPI {
   showOpenDialog: (options: any) => Promise<any>
   showSaveDialog: (options: any) => Promise<any>
 
+  // File history
+  addFileHistory: (connectionId: string | null, path: string) => Promise<void>
+  getFileHistory: () => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
+  clearFileHistory: () => Promise<void>
+  removeFileHistoryItem: (id: string) => Promise<void>
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }

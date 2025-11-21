@@ -60,7 +60,7 @@ export default function ConfirmDialog({
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end space-x-2 px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                <div className="flex justify-end space-x-2 px-4 py-2.5 border-t border-gray-100 dark:border-gray-700">
                     <button
                         onClick={onCancel}
                         className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 focus:ring-offset-1 transition-colors"

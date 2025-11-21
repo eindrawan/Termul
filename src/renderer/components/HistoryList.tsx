@@ -124,7 +124,6 @@ export default function HistoryList({
                     <button
                         onClick={() => {
                             onClearHistory()
-                            onClose()
                         }}
                         className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
                         title="Clear history"

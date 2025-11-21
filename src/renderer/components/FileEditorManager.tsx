@@ -11,7 +11,7 @@ interface FileEditorInstance {
 // Global state to track open file editors
 const openFileEditors: Map<string, FileEditorInstance> = new Map()
 
-export function openFileEditor(file: any, connectionId: string | undefined, isLocal: boolean) {
+export function openFileEditor(file: any, connectionId: string | undefined, isLocal: boolean, profileId?: string) {
     const editorId = `${isLocal ? 'local' : 'remote'}-${connectionId || 'local'}-${file.path}`
 
     // Check if already open
@@ -29,6 +29,12 @@ export function openFileEditor(file: any, connectionId: string | undefined, isLo
 
     // Trigger re-render by dispatching a custom event
     window.dispatchEvent(new CustomEvent('file-editors-changed'))
+
+    // Add to history using profileId if available (for stable history across sessions), otherwise connectionId
+    // For local files, both are null/undefined
+    window.electronAPI.addFileHistory(profileId || connectionId || null, file.path).catch(err => {
+        console.error('Failed to add file to history:', err)
+    })
 }
 
 export function closeFileEditor(editorId: string) {
