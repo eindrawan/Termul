@@ -35,7 +35,7 @@ function createSplashWindow(): void {
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
-    splash.loadURL(`${process.env.VITE_DEV_SERVER_URL}/src/renderer/splash.html`)
+    splash.loadURL(`${process.env.VITE_DEV_SERVER_URL}/splash.html`)
   } else {
     splash.loadFile(join(process.env.DIST || '', '../renderer/splash.html'))
   }

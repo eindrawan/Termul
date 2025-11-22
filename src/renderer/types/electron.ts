@@ -94,6 +94,12 @@ export interface ElectronAPI {
   bulkDeleteLocal: (files: FileSystemEntry[]) => Promise<{ successCount: number; failedCount: number; failedFiles: { file: FileSystemEntry; error: string }[] }>
   bulkDeleteRemote: (connectionId: string, files: FileSystemEntry[]) => Promise<{ successCount: number; failedCount: number; failedFiles: { file: FileSystemEntry; error: string }[] }>
 
+  // Docker operations
+  listDockerContainers: (connectionId: string) => Promise<any[]>
+  getDockerContainerLogs: (connectionId: string, containerId: string) => Promise<string>
+  setDockerSudoPassword: (connectionId: string, password: string) => Promise<void>
+  restartDockerContainer: (connectionId: string, containerId: string) => Promise<void>
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }

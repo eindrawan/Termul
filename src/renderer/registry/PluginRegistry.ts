@@ -2,6 +2,8 @@ import React from 'react'
 import FileManager from '../components/FileManager'
 import Terminal from '../components/Terminal'
 
+import DockerManager from '../components/DockerManager'
+
 export interface PluginTemplate {
     id: string // e.g., 'terminal', 'file-manager'
     label: string
@@ -21,5 +23,11 @@ export const AVAILABLE_PLUGINS: PluginTemplate[] = [
         label: 'Terminal',
         icon: '💻',
         component: Terminal
+    },
+    {
+        id: 'docker',
+        label: 'Docker',
+        icon: '🐳',
+        component: DockerManager
     }
 ]

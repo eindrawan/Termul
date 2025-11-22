@@ -290,6 +290,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('remove-file-history-item', id),
 
   // App lifecycle
+  // Docker operations
+  listDockerContainers: (connectionId: string) =>
+    ipcRenderer.invoke('list-docker-containers', connectionId),
+
+  getDockerContainerLogs: (connectionId: string, containerId: string) =>
+    ipcRenderer.invoke('get-docker-container-logs', connectionId, containerId),
+
+  setDockerSudoPassword: (connectionId: string, password: string) =>
+    ipcRenderer.invoke('set-docker-sudo-password', connectionId, password),
+
+  restartDockerContainer: (connectionId: string, containerId: string) =>
+    ipcRenderer.invoke('restart-docker-container', connectionId, containerId),
+
   appReady: () => ipcRenderer.send('app-ready'),
 })
 
@@ -389,5 +402,12 @@ export interface ElectronAPI {
   getFileHistory: () => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
   clearFileHistory: () => Promise<void>
   removeFileHistoryItem: (id: string) => Promise<void>
+
+  // Docker operations
+  listDockerContainers: (connectionId: string) => Promise<any[]>
+  getDockerContainerLogs: (connectionId: string, containerId: string) => Promise<string>
+  setDockerSudoPassword: (connectionId: string, password: string) => Promise<void>
+  restartDockerContainer: (connectionId: string, containerId: string) => Promise<void>
+
   appReady: () => void
 }

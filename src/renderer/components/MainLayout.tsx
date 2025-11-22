@@ -12,7 +12,7 @@ import FileEditorManager from './FileEditorManager'
 import { usePlugin } from '../contexts/PluginContext'
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import PluginSelectionModal from './PluginSelectionModal'
-import { PluginTemplate } from '../registry/PluginRegistry'
+import { PluginTemplate, AVAILABLE_PLUGINS } from '../registry/PluginRegistry'
 
 export default function MainLayout() {
     const { plugins, registerPlugin, unregisterPlugin } = usePlugin()
@@ -28,17 +28,8 @@ export default function MainLayout() {
 
     // Register plugins on mount
     useEffect(() => {
-        registerPlugin({
-            id: 'file-manager',
-            label: 'File Manager',
-            icon: '📁',
-            component: FileManager
-        })
-        registerPlugin({
-            id: 'terminal',
-            label: 'Terminal',
-            icon: '💻',
-            component: Terminal
+        AVAILABLE_PLUGINS.forEach(plugin => {
+            registerPlugin(plugin)
         })
     }, [registerPlugin])
 
@@ -224,7 +215,7 @@ export default function MainLayout() {
                                 )}
                             </span>
                         ) : (
-                            <span>Termul SSH Client v0.1.2</span>
+                            <span>Termul SSH Client v0.2.0</span>
                         )}
                         <WindowList />
                     </div>

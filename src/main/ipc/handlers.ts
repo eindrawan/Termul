@@ -6,6 +6,7 @@ import { TransferService } from '../services/TransferService'
 import { TerminalService } from '../services/TerminalService'
 import { DatabaseService } from '../services/DatabaseService'
 import { BulkOperationService } from '../services/BulkOperationService'
+import { DockerService } from '../services/DockerService'
 
 // Initialize services
 const db = new DatabaseService()
@@ -14,6 +15,7 @@ const fileService = new FileService(connectionService)
 const transferService = new TransferService(db, connectionService)
 const terminalService = new TerminalService(connectionService)
 const bulkOperationService = new BulkOperationService(fileService)
+const dockerService = new DockerService(connectionService)
 
 // Set the file service instance in the connection service to handle cache clearing
 connectionService.setFileService(fileService)
@@ -630,6 +632,43 @@ export function setupIpcHandlers() {
       return await db.removeFileHistoryItem(validatedId)
     } catch (error) {
       console.error('Remove file history item error:', error)
+      throw error
+    }
+  })
+
+  // Docker handlers
+  ipcMain.handle('list-docker-containers', async (_, connectionId: string) => {
+    try {
+      return await dockerService.listContainers(connectionId)
+    } catch (error) {
+      console.error('List docker containers error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-docker-container-logs', async (_, connectionId: string, containerId: string) => {
+    try {
+      return await dockerService.getContainerLogs(connectionId, containerId)
+    } catch (error) {
+      console.error('Get docker container logs error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('set-docker-sudo-password', async (_, connectionId: string, password: string) => {
+    try {
+      dockerService.setSudoPassword(connectionId, password)
+    } catch (error) {
+      console.error('Set docker sudo password error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('restart-docker-container', async (_, connectionId: string, containerId: string) => {
+    try {
+      return await dockerService.restartContainer(connectionId, containerId)
+    } catch (error) {
+      console.error('Restart docker container error:', error)
       throw error
     }
   })
