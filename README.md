@@ -8,6 +8,11 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 ![Status](https://img.shields.io/badge/status-Active%20Development-green.svg)
 
+## 📸 Screenshots
+
+![Screenshot 1](docs/images/ss1.jpg)
+![Screenshot 2](docs/images/ss2.jpg)
+
 ## ✨ Features
 
 ### 🚀 Core Capabilities
