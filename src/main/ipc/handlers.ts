@@ -672,4 +672,40 @@ export function setupIpcHandlers() {
       throw error
     }
   })
+
+  ipcMain.handle('start-docker-shell', async (_, connectionId: string, containerId: string, cols: number, rows: number) => {
+    try {
+      return await dockerService.startContainerShell(connectionId, containerId, cols, rows)
+    } catch (error) {
+      console.error('Start docker shell error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('send-docker-shell-input', async (_, shellId: string, data: string) => {
+    try {
+      return await dockerService.sendShellInput(shellId, data)
+    } catch (error) {
+      console.error('Send docker shell input error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('resize-docker-shell', async (_, shellId: string, cols: number, rows: number) => {
+    try {
+      return await dockerService.resizeShell(shellId, cols, rows)
+    } catch (error) {
+      console.error('Resize docker shell error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('close-docker-shell', async (_, shellId: string) => {
+    try {
+      return await dockerService.closeShell(shellId)
+    } catch (error) {
+      console.error('Close docker shell error:', error)
+      throw error
+    }
+  })
 }

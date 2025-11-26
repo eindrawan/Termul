@@ -137,6 +137,124 @@ export class DockerService {
         }
     }
 
+    private activeShells = new Map<string, any>()
+
+    async startContainerShell(connectionId: string, containerId: string, cols: number, rows: number): Promise<string> {
+        const client = this.connectionService.getSshClient(connectionId)
+        if (!client) {
+            throw new Error('Not connected to remote host')
+        }
+
+        try {
+            // Request a shell
+            const shellStream = await client.requestShell({
+                term: 'xterm-256color',
+                cols,
+                rows,
+            })
+
+            const shellId = `${connectionId}-${containerId}-${Date.now()}`
+
+            // Store shell instance
+            this.activeShells.set(shellId, {
+                connectionId,
+                containerId,
+                stream: shellStream,
+                connected: true
+            })
+
+            // Setup stream handling
+            this.setupShellStream(shellId, shellStream)
+
+            // Send docker exec command
+            const cachedPassword = this.sudoPasswords.get(connectionId)
+
+            if (cachedPassword) {
+                // If we have a cached password, use sudo -S
+                // We use -p '' to suppress the prompt since we're sending the password immediately
+                const cmd = `sudo -S -p '' docker exec -it ${containerId} /bin/sh || sudo -S -p '' docker exec -it ${containerId} /bin/bash`
+                shellStream.write(`${cmd}\n`)
+
+                // Send password after a brief delay to ensure sudo is ready to read it
+                setTimeout(() => {
+                    shellStream.write(`${cachedPassword}\n`)
+                }, 100)
+            } else {
+                const cmd = `docker exec -it ${containerId} /bin/sh || docker exec -it ${containerId} /bin/bash`
+                shellStream.write(`${cmd}\n`)
+            }
+
+            return shellId
+        } catch (error) {
+            throw new Error(`Failed to start container shell: ${error instanceof Error ? error.message : error}`)
+        }
+    }
+
+    async sendShellInput(shellId: string, data: string): Promise<void> {
+        const shell = this.activeShells.get(shellId)
+        if (!shell || !shell.connected) {
+            throw new Error('Shell not connected')
+        }
+        shell.stream.write(data)
+    }
+
+    async resizeShell(shellId: string, cols: number, rows: number): Promise<void> {
+        const shell = this.activeShells.get(shellId)
+        if (!shell || !shell.connected) {
+            return
+        }
+        shell.stream.setWindow(rows, cols, 0, 0)
+    }
+
+    async closeShell(shellId: string): Promise<void> {
+        const shell = this.activeShells.get(shellId)
+        if (shell) {
+            shell.stream.close()
+            shell.connected = false
+            this.activeShells.delete(shellId)
+        }
+    }
+
+    private setupShellStream(shellId: string, stream: any): void {
+        let buffer = Buffer.alloc(0)
+
+        const emitOutput = (data: string) => {
+            if ((global as any).mainWindow) {
+                (global as any).mainWindow.webContents.send('docker-shell-output', { shellId, data })
+            }
+        }
+
+        stream.on('data', (data: Buffer) => {
+            buffer = Buffer.concat([buffer, data])
+            if (buffer.length > 1024 || buffer.includes('\n'.charCodeAt(0))) {
+                emitOutput(buffer.toString())
+                buffer = Buffer.alloc(0)
+            }
+        })
+
+        const flushInterval = setInterval(() => {
+            if (buffer.length > 0) {
+                emitOutput(buffer.toString())
+                buffer = Buffer.alloc(0)
+            }
+        }, 100)
+
+        stream.on('close', () => {
+            clearInterval(flushInterval)
+            if (buffer.length > 0) {
+                emitOutput(buffer.toString())
+            }
+            if ((global as any).mainWindow) {
+                (global as any).mainWindow.webContents.send('docker-shell-closed', { shellId })
+            }
+            this.activeShells.delete(shellId)
+        })
+
+        stream.on('error', (error: Error) => {
+            emitOutput(`\r\n\x1b[31mError: ${error.message}\x1b[0m\r\n`)
+        })
+    }
+
     async restartContainer(connectionId: string, containerId: string): Promise<void> {
         const client = this.connectionService.getSshClient(connectionId)
         if (!client) {

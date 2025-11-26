@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
-import { useTerminal } from '../contexts/TerminalContext'
+
+import { useWindowManager } from '../contexts/WindowManagerContext'
 import { ArrowPathIcon, CommandLineIcon, DocumentTextIcon, CubeIcon } from '@heroicons/react/24/outline'
+import DockerLogsViewer from './DockerLogsViewer'
+import DockerShellViewer from './DockerShellViewer'
 
 interface DockerManagerProps {
     connectionId: string
@@ -27,10 +30,6 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
     const [containers, setContainers] = useState<DockerContainer[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [selectedContainer, setSelectedContainer] = useState<DockerContainer | null>(null)
-    const [logs, setLogs] = useState<string>('')
-    const [loadingLogs, setLoadingLogs] = useState(false)
-    const [showLogsModal, setShowLogsModal] = useState(false)
 
     const [showSudoModal, setShowSudoModal] = useState(false)
     const [sudoPassword, setSudoPassword] = useState('')
@@ -39,8 +38,8 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
     const [restartingContainers, setRestartingContainers] = useState<Set<string>>(new Set())
     const [pinnedContainers, setPinnedContainers] = useState<Set<string>>(new Set())
 
-    const { state: connectionState, dispatch } = useConnection()
-    const { sendInputMutation } = useTerminal()
+    const { state: connectionState } = useConnection()
+    const { registerWindow, focusWindow, getWindow } = useWindowManager()
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
@@ -159,40 +158,52 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
         }
     }, [isActive, isConnected])
 
-    const handleShowLogs = async (container: DockerContainer) => {
-        setSelectedContainer(container)
-        setShowLogsModal(true)
-        setLoadingLogs(true)
-        setLogs('')
-        try {
-            const logsData = await window.electronAPI.getDockerContainerLogs(connectionId, container.ID)
-            setLogs(logsData)
-        } catch (err) {
-            console.error('Failed to fetch logs:', err)
-            const message = err instanceof Error ? err.message : String(err)
-            if (message.includes('SUDO_PASSWORD_REQUIRED')) {
-                setShowLogsModal(false) // Close logs modal to show sudo modal
-                handleSudoRequired('logs', container)
-            } else {
-                setLogs(`Failed to fetch logs: ${message}`)
-            }
-        } finally {
-            setLoadingLogs(false)
+    const handleShowLogs = (container: DockerContainer) => {
+        const windowId = `docker-logs-${container.ID}`
+        const existingWindow = getWindow(windowId)
+
+        if (existingWindow) {
+            focusWindow(windowId)
+        } else {
+            registerWindow({
+                id: windowId,
+                title: `Logs: ${container.Names}`,
+                defaultPosition: { width: 800, height: 600 },
+                minSize: { width: 400, height: 300 },
+                position: { x: 0, y: 0, width: 0, height: 0 }, // Initial position is calculated by reducer
+                content: (
+                    <DockerLogsViewer
+                        connectionId={connectionId}
+                        containerId={container.ID}
+                        onSudoRequired={() => handleSudoRequired('logs', container)}
+                    />
+                )
+            })
         }
     }
 
     const handleEnterShell = (container: DockerContainer) => {
-        dispatch({
-            type: 'SET_ACTIVE_PLUGIN',
-            payload: { connectionId, pluginId: 'terminal' }
+        const windowId = `docker-shell-${container.ID}`
+        const existingWindow = getWindow(windowId)
+
+        if (existingWindow) {
+            focusWindow(windowId)
+            return
+        }
+
+        registerWindow({
+            id: windowId,
+            title: `Shell: ${container.Names}`,
+            defaultPosition: { width: 800, height: 600 },
+            minSize: { width: 400, height: 300 },
+            position: { x: 0, y: 0, width: 0, height: 0 },
+            content: (
+                <DockerShellViewer
+                    connectionId={connectionId}
+                    containerId={container.ID}
+                />
+            )
         })
-        // Wait a bit for terminal to mount/focus
-        setTimeout(() => {
-            sendInputMutation.mutate({
-                connectionId,
-                data: `docker exec -it ${container.ID} /bin/sh || docker exec -it ${container.ID} /bin/bash\r`
-            })
-        }, 500)
     }
 
     // Sort containers: Pinned first, then running, then others
@@ -302,45 +313,6 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                     </div>
                 ))}
             </div>
-
-            {/* Logs Modal */}
-            {showLogsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                            <h3 className="font-medium text-lg">
-                                Logs: {selectedContainer?.Names}
-                            </h3>
-                            <button
-                                onClick={() => setShowLogsModal(false)}
-                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                            >
-                                <span className="sr-only">Close</span>
-                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="flex-1 overflow-auto p-4 bg-gray-900 text-gray-100 font-mono text-sm whitespace-pre-wrap">
-                            {loadingLogs ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-500" />
-                                </div>
-                            ) : (
-                                logs || 'No logs available.'
-                            )}
-                        </div>
-                        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-gray-50 dark:bg-gray-800 rounded-b-lg">
-                            <button
-                                onClick={() => setShowLogsModal(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Sudo Password Modal */}
             {showSudoModal && (

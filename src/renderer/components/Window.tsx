@@ -25,7 +25,7 @@ export default function Window({
     minHeight = 300,
     onClose
 }: WindowProps) {
-    const { state, focusWindow, minimizeWindow, maximizeWindow, restoreWindow, updatePosition } = useWindowManager()
+    const { state, focusWindow, minimizeWindow, maximizeWindow, restoreWindow, closeWindow, updatePosition } = useWindowManager()
     const windowConfig = state.windows.get(id)
 
     const [isDragging, setIsDragging] = useState(false)
@@ -185,9 +185,7 @@ export default function Window({
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
-                            if (onClose) {
-                                onClose()
-                            }
+                            closeWindow(id)
                         }}
                         className={`p-1 rounded transition-colors ${isFocused
                             ? 'hover:bg-red-600'

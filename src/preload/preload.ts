@@ -303,6 +303,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartDockerContainer: (connectionId: string, containerId: string) =>
     ipcRenderer.invoke('restart-docker-container', connectionId, containerId),
 
+  startDockerShell: (connectionId: string, containerId: string, cols: number, rows: number) =>
+    ipcRenderer.invoke('start-docker-shell', connectionId, containerId, cols, rows),
+
+  sendDockerShellInput: (shellId: string, data: string) =>
+    ipcRenderer.invoke('send-docker-shell-input', shellId, data),
+
+  resizeDockerShell: (shellId: string, cols: number, rows: number) =>
+    ipcRenderer.invoke('resize-docker-shell', shellId, cols, rows),
+
+  closeDockerShell: (shellId: string) =>
+    ipcRenderer.invoke('close-docker-shell', shellId),
+
+  onDockerShellOutput: (callback: (data: { shellId: string; data: string }) => void) => {
+    const listener = (_: any, data: { shellId: string; data: string }) => callback(data)
+    ipcRenderer.on('docker-shell-output', listener)
+    return listener
+  },
+
+  onDockerShellClosed: (callback: (data: { shellId: string }) => void) => {
+    const listener = (_: any, data: { shellId: string }) => callback(data)
+    ipcRenderer.on('docker-shell-closed', listener)
+    return listener
+  },
+
   appReady: () => ipcRenderer.send('app-ready'),
 })
 

@@ -99,6 +99,12 @@ export interface ElectronAPI {
   getDockerContainerLogs: (connectionId: string, containerId: string) => Promise<string>
   setDockerSudoPassword: (connectionId: string, password: string) => Promise<void>
   restartDockerContainer: (connectionId: string, containerId: string) => Promise<void>
+  startDockerShell: (connectionId: string, containerId: string, cols: number, rows: number) => Promise<string>
+  sendDockerShellInput: (shellId: string, data: string) => Promise<void>
+  resizeDockerShell: (shellId: string, cols: number, rows: number) => Promise<void>
+  closeDockerShell: (shellId: string) => Promise<void>
+  onDockerShellOutput: (callback: (data: { shellId: string; data: string }) => void) => void
+  onDockerShellClosed: (callback: (data: { shellId: string }) => void) => void
 
   // Remove all listeners
   removeAllListeners: (channel: string) => void
