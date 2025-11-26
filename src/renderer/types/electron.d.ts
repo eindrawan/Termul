@@ -60,7 +60,7 @@ export interface ElectronAPI {
 
   // File history
   addFileHistory: (connectionId: string | null, path: string) => Promise<void>
-  getFileHistory: () => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
+  getFileHistory: (profileId?: string) => Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]>
   clearFileHistory: () => Promise<void>
   removeFileHistoryItem: (id: string) => Promise<void>
 

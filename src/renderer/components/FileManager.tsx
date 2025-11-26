@@ -215,7 +215,7 @@ export default function FileManager({
 
     const handleOpenFileHistory = async () => {
         try {
-            const history = await window.electronAPI.getFileHistory()
+            const history = await window.electronAPI.getFileHistory(connection?.profile?.id)
             setFileHistory(history)
         } catch (error) {
             console.error('Failed to load file history:', error)

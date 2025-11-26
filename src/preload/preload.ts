@@ -280,8 +280,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addFileHistory: (connectionId: string | null, path: string) =>
     ipcRenderer.invoke('add-file-history', connectionId, path),
 
-  getFileHistory: () =>
-    ipcRenderer.invoke('get-file-history'),
+  getFileHistory: (profileId?: string) =>
+    ipcRenderer.invoke('get-file-history', profileId),
 
   clearFileHistory: () =>
     ipcRenderer.invoke('clear-file-history'),

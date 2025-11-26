@@ -1,4 +1,5 @@
 import { ConnectionService } from './ConnectionService'
+import { CredentialService } from './CredentialService'
 
 export interface DockerContainer {
     ID: string
@@ -17,8 +18,11 @@ export interface DockerContainer {
 
 export class DockerService {
     private sudoPasswords = new Map<string, string>()
+    private credentialService: CredentialService
 
-    constructor(private connectionService: ConnectionService) { }
+    constructor(private connectionService: ConnectionService) {
+        this.credentialService = new CredentialService()
+    }
 
     setSudoPassword(connectionId: string, password: string) {
         this.sudoPasswords.set(connectionId, password)
@@ -33,6 +37,27 @@ export class DockerService {
             const sudoResult = await client.execCommand(`sudo -n ${command}`)
             if (sudoResult.code === 0) {
                 return sudoResult
+            }
+
+            // Try with connection password first if available
+            const connectionProfile = this.connectionService.getConnectionProfile(connectionId)
+            if (connectionProfile && connectionProfile.authType === 'password') {
+                try {
+                    const authCredentials = await this.credentialService.getAuthCredentials(connectionProfile)
+                    if (authCredentials.password) {
+                        const connectionPasswordResult = await client.execCommand(`sudo -S ${command}`, {
+                            stdin: `${authCredentials.password}\n`
+                        })
+
+                        if (connectionPasswordResult.code === 0) {
+                            // Cache the connection password as sudo password for future use
+                            this.sudoPasswords.set(connectionId, authCredentials.password)
+                            return connectionPasswordResult
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to use connection password for sudo:', error)
+                }
             }
 
             // Try with cached sudo password if available

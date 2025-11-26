@@ -608,9 +608,9 @@ export function setupIpcHandlers() {
     }
   })
 
-  ipcMain.handle('get-file-history', async () => {
+  ipcMain.handle('get-file-history', async (_, profileId?: string) => {
     try {
-      return await db.getFileHistory()
+      return await db.getFileHistory(profileId)
     } catch (error) {
       console.error('Get file history error:', error)
       throw error

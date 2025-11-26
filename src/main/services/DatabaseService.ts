@@ -633,14 +633,27 @@ export class DatabaseService {
     stmt.run(id)
   }
 
-  async getFileHistory(): Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]> {
-    const stmt = this.db.prepare(`
-      SELECT * FROM file_history
-      ORDER BY last_opened_at DESC
-      LIMIT 50
-    `)
+  async getFileHistory(profileId?: string): Promise<{ id: string, connectionId: string | null, path: string, lastOpenedAt: number }[]> {
+    let stmt;
+    
+    if (profileId) {
+      // Filter by specific profile ID
+      stmt = this.db.prepare(`
+        SELECT * FROM file_history
+        WHERE connection_id = ? OR (connection_id IS NULL AND ? IS NULL)
+        ORDER BY last_opened_at DESC
+        LIMIT 50
+      `)
+    } else {
+      // Return all history (original behavior)
+      stmt = this.db.prepare(`
+        SELECT * FROM file_history
+        ORDER BY last_opened_at DESC
+        LIMIT 50
+      `)
+    }
 
-    const history = stmt.all() as any[]
+    const history = profileId ? stmt.all(profileId, profileId) : stmt.all() as any[]
 
     return history.map(item => ({
       id: item.id,

@@ -5,6 +5,7 @@
     "main": "dist/main/main/main.js",
     "homepage": "./",
     "scripts": {
+        "start": "npm run build && npm run dev",
         "dev": "npm run copy:workers && npm run build:preload && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
         "dev:vite": "vite",
         "dev:electron": "wait-on http://localhost:5273 && electron .",
