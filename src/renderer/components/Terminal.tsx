@@ -1,15 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { Terminal as XTerm } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { WebLinksAddon } from '@xterm/addon-web-links'
+import React, { useEffect, useState } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTerminal } from '../contexts/TerminalContext'
 import { useTheme } from '../contexts/ThemeContext'
 import AlertDialog from './AlertDialog'
 import TerminalBookmarkDialog from './TerminalBookmarkDialog'
 import TerminalBookmarkList from './TerminalBookmarkList'
+import TerminalContextMenu from './TerminalContextMenu'
+import { useXTerm } from '../hooks/useXTerm'
 import { TerminalBookmark } from '../types'
-import { DocumentDuplicateIcon, ClipboardIcon, BookmarkIcon, BookOpenIcon } from '@heroicons/react/24/outline'
+import { BookmarkIcon, BookOpenIcon } from '@heroicons/react/24/outline'
 
 interface TerminalProps {
     connectionId: string
@@ -17,11 +16,6 @@ interface TerminalProps {
 }
 
 export default function Terminal({ connectionId, isActive }: TerminalProps) {
-    const terminalRef = useRef<HTMLDivElement>(null)
-    const xtermRef = useRef<XTerm | null>(null)
-    const fitAddonRef = useRef<FitAddon | null>(null)
-    const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
-    const lastProcessedIndexRef = useRef<number>(-1) // Track the last processed output index
     const { state: connectionState } = useConnection()
     const { getSessionState, openMutation, closeMutation, sendInputMutation, clearError } = useTerminal()
     const { theme } = useTheme()
@@ -48,179 +42,42 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
         y: number
     }>({ isOpen: false, x: 0, y: 0 })
 
+    const [contextMenu, setContextMenu] = useState<{
+        isOpen: boolean
+        x: number
+        y: number
+    }>({ isOpen: false, x: 0, y: 0 })
+
     const [terminalBookmarks, setTerminalBookmarks] = useState<TerminalBookmark[]>([])
 
-    // Update terminal theme when theme changes
-    useEffect(() => {
-        if (xtermRef.current) {
-            const isDark = theme === 'dark'
-            xtermRef.current.options.theme = {
-                background: isDark ? '#000000' : '#ffffff',
-                foreground: isDark ? '#ffffff' : '#000000',
-                cursor: isDark ? '#ffffff' : '#000000',
-                black: isDark ? '#000000' : '#000000',
-                red: isDark ? '#cd3131' : '#cd3131',
-                green: isDark ? '#0dbc79' : '#0dbc79',
-                yellow: isDark ? '#e5e510' : '#e5e510',
-                blue: isDark ? '#2472c8' : '#2472c8',
-                magenta: isDark ? '#bc3fbc' : '#bc3fbc',
-                cyan: isDark ? '#11a8cd' : '#11a8cd',
-                white: isDark ? '#e5e5e5' : '#e5e5e5',
-                brightBlack: isDark ? '#666666' : '#666666',
-                brightRed: isDark ? '#f14c4c' : '#f14c4c',
-                brightGreen: isDark ? '#23d18b' : '#23d18b',
-                brightYellow: isDark ? '#f5f543' : '#f5f543',
-                brightBlue: isDark ? '#3b8eea' : '#3b8eea',
-                brightMagenta: isDark ? '#d670d6' : '#d670d6',
-                brightCyan: isDark ? '#29b8db' : '#29b8db',
-                brightWhite: isDark ? '#e5e5e5' : '#e5e5e5',
-            }
-        }
-    }, [theme])
+    const handleInput = (data: string) => {
+        console.log('[Terminal] User input:', data)
+        sendInputMutation.mutate({ connectionId, data })
+    }
 
-    // Initialize xterm when component mounts
-    useEffect(() => {
-        if (!terminalRef.current || xtermRef.current) return
+    const handleResize = (cols: number, rows: number) => {
+        console.log('[Terminal] Terminal resized - cols:', cols, 'rows:', rows)
+        window.electronAPI.resizeTerminal(connectionId, cols, rows)
+            .catch(error => console.error('[Terminal] Failed to notify backend of resize:', error))
+    }
 
-        console.log('[Terminal] Initializing xterm instance')
-
-        // Create terminal instance
-        const term = new XTerm({
-            cursorBlink: true,
-            fontSize: 14,
-            fontFamily: 'JetBrains Mono, monospace',
-            theme: {
-                background: theme === 'dark' ? '#000000' : '#ffffff',
-                foreground: theme === 'dark' ? '#ffffff' : '#000000',
-                cursor: theme === 'dark' ? '#ffffff' : '#000000',
-            },
+    const handleContextMenu = (event: MouseEvent) => {
+        setContextMenu({
+            isOpen: true,
+            x: event.clientX,
+            y: event.clientY
         })
+    }
 
-        // Create and load fit addon
-        const fitAddon = new FitAddon()
-        term.loadAddon(fitAddon)
-
-        // Create and load web links addon
-        const webLinksAddon = new WebLinksAddon()
-        term.loadAddon(webLinksAddon)
-
-        // Open terminal in DOM
-        term.open(terminalRef.current)
-
-        // Don't fit immediately - wait for the terminal to be visible
-        // The fit will happen when terminalState.isConnected becomes true
-
-        // Handle user input
-        term.onData((data: string) => {
-            console.log('[Terminal] User input:', data)
-            sendInputMutation.mutate({ connectionId, data })
-        })
-
-        // Store references
-        xtermRef.current = term
-        fitAddonRef.current = fitAddon
-        webLinksAddonRef.current = webLinksAddon
-
-        // Add right-click context menu handler
-        term.element?.addEventListener('contextmenu', (e) => {
-            e.preventDefault()
-            handleRightClick(e, term)
-        })
-
-        console.log('[Terminal] Xterm instance created and opened')
-
-        // Handle terminal resize - notify backend when terminal dimensions change
-        term.onResize(({ cols, rows }) => {
-            console.log('[Terminal] Terminal resized - cols:', cols, 'rows:', rows)
-            // Notify backend about the new terminal size
-            window.electronAPI.resizeTerminal(connectionId, cols, rows)
-                .catch(error => console.error('[Terminal] Failed to notify backend of resize:', error))
-        })
-
-        // Handle window resize
-        const handleResize = () => {
-            if (fitAddonRef.current && xtermRef.current && terminalRef.current) {
-                // Only fit if the terminal is actually visible
-                if (terminalRef.current.offsetParent === null) {
-                    return
-                }
-
-                try {
-                    fitAddonRef.current.fit()
-                    // The onResize event will be triggered automatically by xterm
-                } catch (error) {
-                    console.error('[Terminal] Error during resize:', error)
-                }
-            }
-        }
-
-        // Use ResizeObserver for better resize detection
-        const resizeObserver = new ResizeObserver(() => {
-            handleResize()
-        })
-
-        if (terminalRef.current) {
-            resizeObserver.observe(terminalRef.current)
-        }
-
-        window.addEventListener('resize', handleResize)
-
-        // Cleanup
-        return () => {
-            // console.log('[Terminal] Cleaning up xterm instance')
-            resizeObserver.disconnect()
-            window.removeEventListener('resize', handleResize)
-            term.dispose()
-            xtermRef.current = null
-            fitAddonRef.current = null
-            webLinksAddonRef.current = null
-        }
-    }, [])
-
-    // Handle active state change
-    useEffect(() => {
-        if (isActive && fitAddonRef.current && xtermRef.current && terminalRef.current) {
-            // Use requestAnimationFrame to ensure the DOM has updated and the element is visible
-            requestAnimationFrame(() => {
-                if (fitAddonRef.current && xtermRef.current && terminalRef.current?.offsetParent) {
-                    try {
-                        fitAddonRef.current.fit()
-                        console.log('[Terminal] Fitted after becoming active - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
-                    } catch (error) {
-                        console.error('[Terminal] Error during fit after becoming active:', error)
-                    }
-                }
-            })
-        }
-    }, [isActive])
-
-    // Handle terminal output
-    useEffect(() => {
-        if (!xtermRef.current) {
-            return
-        }
-
-        const term = xtermRef.current
-        const outputArray = terminalState.output
-
-        // Write only new output chunks that haven't been processed yet
-        const startIndex = lastProcessedIndexRef.current + 1
-
-        if (startIndex < outputArray.length) {
-            // Process all new output chunks
-            for (let i = startIndex; i < outputArray.length; i++) {
-                const outputChunk = outputArray[i]
-                try {
-                    term.write(outputChunk)
-                } catch (error) {
-                    console.error('[Terminal] Error writing output:', error)
-                }
-            }
-
-            // Update the last processed index
-            lastProcessedIndexRef.current = outputArray.length - 1
-        }
-    }, [terminalState.output])
+    const { terminalRef, xtermRef } = useXTerm({
+        isActive,
+        isConnected: terminalState.isConnected,
+        theme,
+        output: terminalState.output,
+        onInput: handleInput,
+        onResize: handleResize,
+        onContextMenu: handleContextMenu
+    })
 
     // Handle terminal errors
     useEffect(() => {
@@ -231,12 +88,10 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
                 variant: 'error'
             })
 
-            // Disconnect the terminal when an error occurs
             if (terminalState.isConnected) {
                 closeMutation.mutate(connectionId)
             }
 
-            // Clear the error after showing the dialog
             clearError(connectionId)
         }
     }, [terminalState.error, terminalState.isConnected, connectionId, closeMutation, clearError])
@@ -244,39 +99,9 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
     // Auto-open terminal when connected and active
     useEffect(() => {
         if (isConnected && !terminalState.isConnected && !openMutation.isPending && isActive) {
-            // console.log('[Terminal] Auto-opening terminal for connection:', connectionId)
             openMutation.mutate(connectionId)
         }
     }, [isConnected, terminalState.isConnected, connectionId, isActive])
-
-    // Handle terminal visibility changes
-    useEffect(() => {
-        if (terminalState.isConnected && xtermRef.current && fitAddonRef.current) {
-            // console.log('[Terminal] Session opened, fitting terminal')
-            // Reset the processed index when a new session starts
-            lastProcessedIndexRef.current = -1
-
-            // Use requestAnimationFrame to ensure the DOM has updated and the element is visible
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    if (fitAddonRef.current && xtermRef.current) {
-                        try {
-                            fitAddonRef.current.fit()
-                            console.log('[Terminal] Fitted after connection - cols:', xtermRef.current.cols, 'rows:', xtermRef.current.rows)
-                            // The onResize event handler will automatically notify the backend
-                        } catch (error) {
-                            console.error('[Terminal] Error during fit after connection:', error)
-                        }
-                    }
-                })
-            })
-        } else if (!terminalState.isConnected && xtermRef.current) {
-            // console.log('[Terminal] Session closed, clearing terminal')
-            xtermRef.current.clear()
-            // Reset the processed index when terminal is cleared
-            lastProcessedIndexRef.current = -1
-        }
-    }, [terminalState.isConnected])
 
     // Load terminal bookmarks when connection changes
     useEffect(() => {
@@ -309,33 +134,22 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
     const handleClearTerminal = () => {
         if (xtermRef.current) {
             xtermRef.current.clear()
-            // Don't reset the index here - we're only clearing the display, not the output history
-            // The output array in state remains unchanged
         }
     }
 
     const handleBookmarkCommand = () => {
         const selection = xtermRef.current?.getSelection()
-        if (selection) {
-            setBookmarkDialog({
-                isOpen: true,
-                initialCommand: selection,
-                initialName: ''
-            })
-        } else {
-            setBookmarkDialog({
-                isOpen: true,
-                initialCommand: '',
-                initialName: ''
-            })
-        }
+        setBookmarkDialog({
+            isOpen: true,
+            initialCommand: selection || '',
+            initialName: ''
+        })
     }
 
     const handleSaveBookmark = async (bookmark: Omit<TerminalBookmark, 'id' | 'createdAt'>) => {
         try {
             await window.electronAPI.saveTerminalBookmark(bookmark)
 
-            // Reload bookmarks
             if (connection?.profile.id) {
                 const bookmarks = await window.electronAPI.getTerminalBookmarks(connection.profile.id)
                 setTerminalBookmarks(bookmarks)
@@ -365,17 +179,13 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
     }
 
     const handleSelectBookmark = (bookmark: TerminalBookmark) => {
-        if (xtermRef.current) {
-            // Send the command to the terminal
-            sendInputMutation.mutate({ connectionId, data: bookmark.command + '\n' })
-        }
+        sendInputMutation.mutate({ connectionId, data: bookmark.command + '\n' })
     }
 
     const handleDeleteBookmark = async (id: string) => {
         try {
             await window.electronAPI.deleteTerminalBookmark(id)
 
-            // Reload bookmarks
             if (connection?.profile.id) {
                 const bookmarks = await window.electronAPI.getTerminalBookmarks(connection.profile.id)
                 setTerminalBookmarks(bookmarks)
@@ -396,105 +206,28 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
         }
     }
 
-    const handleRightClick = (event: MouseEvent, term: XTerm) => {
-        // Remove any existing context menus first
-        const existingMenus = document.querySelectorAll('.terminal-context-menu')
-        existingMenus.forEach(menu => {
-            if (document.body.contains(menu)) {
-                document.body.removeChild(menu)
+    const handleCopy = async () => {
+        xtermRef.current?.focus()
+        try {
+            const selection = xtermRef.current?.getSelection()
+            if (selection) {
+                await navigator.clipboard.writeText(selection)
             }
-        })
+        } catch (error) {
+            console.error('Failed to copy to clipboard:', error)
+        }
+    }
 
-        // Adjust position if menu would go off screen
-        const menuWidth = 150
-        const menuHeight = 120 // Approximate height for 3 menu items
-        const adjustedX = event.clientX + menuWidth > window.innerWidth
-            ? window.innerWidth - menuWidth - 5
-            : event.clientX
-        const adjustedY = event.clientY + menuHeight > window.innerHeight
-            ? window.innerHeight - menuHeight - 5
-            : event.clientY
-
-        // Create context menu
-        const contextMenu = document.createElement('div')
-        const isDark = document.documentElement.classList.contains('dark')
-        contextMenu.className = `terminal-context-menu fixed ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-md shadow-lg py-1 z-50 min-w-[150px]`
-        contextMenu.style.left = `${adjustedX}px`
-        contextMenu.style.top = `${adjustedY}px`
-
-        // Create menu items
-        const copyItem = document.createElement('button')
-        copyItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
-        copyItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>Copy'
-
-        const pasteItem = document.createElement('button')
-        pasteItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
-        pasteItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>Paste'
-
-        const bookmarkItem = document.createElement('button')
-        bookmarkItem.className = `w-full text-left px-4 py-2 text-sm flex items-center ${isDark ? 'text-white hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`
-        bookmarkItem.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>Bookmark Command'
-
-        // Add click handlers
-        copyItem.addEventListener('click', async (e) => {
-            e.stopPropagation()
-            try {
-                const selection = term.getSelection()
-                if (selection) {
-                    await navigator.clipboard.writeText(selection)
-                }
-                document.body.removeChild(contextMenu)
-            } catch (error) {
-                console.error('Failed to copy to clipboard:', error)
-                document.body.removeChild(contextMenu)
+    const handlePaste = async () => {
+        xtermRef.current?.focus()
+        try {
+            const text = await navigator.clipboard.readText()
+            if (text && xtermRef.current) {
+                xtermRef.current.paste(text)
             }
-        })
-
-        pasteItem.addEventListener('click', async (e) => {
-            e.stopPropagation()
-            try {
-                const text = await navigator.clipboard.readText()
-                if (text) {
-                    sendInputMutation.mutate({ connectionId, data: text })
-                }
-                document.body.removeChild(contextMenu)
-            } catch (error) {
-                console.error('Failed to paste from clipboard:', error)
-                document.body.removeChild(contextMenu)
-            }
-        })
-
-        bookmarkItem.addEventListener('click', async (e) => {
-            e.stopPropagation()
-            const selection = term.getSelection()
-            setBookmarkDialog({
-                isOpen: true,
-                initialCommand: selection || '',
-                initialName: ''
-            })
-            document.body.removeChild(contextMenu)
-        })
-
-        // Add items to menu
-        contextMenu.appendChild(copyItem)
-        contextMenu.appendChild(pasteItem)
-        contextMenu.appendChild(bookmarkItem)
-
-        // Add menu to DOM
-        document.body.appendChild(contextMenu)
-
-        // Remove menu on click outside
-        setTimeout(() => {
-            const removeMenu = (e: Event) => {
-                if (!contextMenu.contains(e.target as Node)) {
-                    if (document.body.contains(contextMenu)) {
-                        document.body.removeChild(contextMenu)
-                    }
-                    document.removeEventListener('click', removeMenu)
-                }
-            }
-            document.addEventListener('click', removeMenu)
-        }, 0)
+        } catch (error) {
+            console.error('Failed to paste from clipboard:', error)
+        }
     }
 
     return (
@@ -521,10 +254,10 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
                         {!terminalState.isConnected ? (
                             <button
                                 onClick={handleOpenTerminal}
-                                disabled={openMutation.isLoading}
+                                disabled={openMutation.isPending}
                                 className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none text-sm font-medium transition-colors dark:bg-blue-700 dark:hover:bg-blue-800"
                             >
-                                {openMutation.isLoading ? 'Opening...' : 'Open Terminal'}
+                                {openMutation.isPending ? 'Opening...' : 'Open Terminal'}
                             </button>
                         ) : (
                             <>
@@ -601,6 +334,17 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
                     onSelectBookmark={handleSelectBookmark}
                     onDeleteBookmark={handleDeleteBookmark}
                     onClose={() => setBookmarkList({ ...bookmarkList, isOpen: false })}
+                />
+            )}
+
+            {contextMenu.isOpen && (
+                <TerminalContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu({ ...contextMenu, isOpen: false })}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
+                    onBookmark={handleBookmarkCommand}
                 />
             )}
         </>
