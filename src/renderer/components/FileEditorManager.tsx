@@ -1,6 +1,7 @@
 import React from 'react'
 import FileEditor from './FileEditor'
 import ImageViewer from './ImageViewer'
+import PdfViewer from './PdfViewer'
 
 interface FileEditorInstance {
     id: string
@@ -70,6 +71,20 @@ export default function FileEditorManager() {
                 if (isImage) {
                     return (
                         <ImageViewer
+                            key={editor.id}
+                            file={editor.file}
+                            isOpen={true}
+                            onClose={() => closeFileEditor(editor.id)}
+                            connectionId={editor.connectionId}
+                            isLocal={editor.isLocal}
+                        />
+                    )
+                }
+
+                const isPdf = /\.pdf$/i.test(editor.file.name)
+                if (isPdf) {
+                    return (
+                        <PdfViewer
                             key={editor.id}
                             file={editor.file}
                             isOpen={true}

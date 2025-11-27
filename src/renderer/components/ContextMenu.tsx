@@ -323,7 +323,7 @@ export default function ContextMenu({
                                 Download
                             </button>
                         )}
-                        {file.type === 'file' && file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$/i) && (
+                        {file.type === 'file' && file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$|\.pdf$/i) && (
                             <button
                                 onClick={handleEdit}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
@@ -332,7 +332,7 @@ export default function ContextMenu({
                                 Open
                             </button>
                         )}
-                        {file.type === 'file' && !file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$/i) && (
+                        {file.type === 'file' && !file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$|\.pdf$/i) && (
                             <button
                                 onClick={handleEdit}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
