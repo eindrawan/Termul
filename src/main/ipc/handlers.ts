@@ -7,6 +7,7 @@ import { TerminalService } from '../services/TerminalService'
 import { DatabaseService } from '../services/DatabaseService'
 import { BulkOperationService } from '../services/BulkOperationService'
 import { DockerService } from '../services/DockerService'
+import { CrontabService } from '../services/CrontabService'
 
 // Initialize services
 const db = new DatabaseService()
@@ -16,6 +17,7 @@ const transferService = new TransferService(db, connectionService)
 const terminalService = new TerminalService(connectionService)
 const bulkOperationService = new BulkOperationService(fileService)
 const dockerService = new DockerService(connectionService)
+const crontabService = new CrontabService(connectionService)
 
 // Set the file service instance in the connection service to handle cache clearing
 connectionService.setFileService(fileService)
@@ -705,6 +707,43 @@ export function setupIpcHandlers() {
       return await dockerService.closeShell(shellId)
     } catch (error) {
       console.error('Close docker shell error:', error)
+      throw error
+    }
+  })
+
+  // Crontab handlers
+  ipcMain.handle('read-crontab', async (_, connectionId: string, crontabType: 'user' | 'root' = 'user') => {
+    try {
+      return await crontabService.readCrontab(connectionId, crontabType)
+    } catch (error) {
+      console.error('Read crontab error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('write-crontab', async (_, connectionId: string, content: string, crontabType: 'user' | 'root' = 'user') => {
+    try {
+      return await crontabService.writeCrontab(connectionId, content, crontabType)
+    } catch (error) {
+      console.error('Write crontab error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('validate-crontab', async (_, content: string) => {
+    try {
+      return await crontabService.validateCrontab(content)
+    } catch (error) {
+      console.error('Validate crontab error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('set-crontab-sudo-password', async (_, connectionId: string, password: string) => {
+    try {
+      crontabService.setSudoPassword(connectionId, password)
+    } catch (error) {
+      console.error('Set crontab sudo password error:', error)
       throw error
     }
   })

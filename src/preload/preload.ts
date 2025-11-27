@@ -328,6 +328,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   appReady: () => ipcRenderer.send('app-ready'),
+
+  // Crontab operations
+  readCrontab: (connectionId: string, crontabType?: 'user' | 'root') =>
+    ipcRenderer.invoke('read-crontab', connectionId, crontabType),
+
+  writeCrontab: (connectionId: string, content: string, crontabType?: 'user' | 'root') =>
+    ipcRenderer.invoke('write-crontab', connectionId, content, crontabType),
+
+  validateCrontab: (content: string) =>
+    ipcRenderer.invoke('validate-crontab', content),
+
+  setCrontabSudoPassword: (connectionId: string, password: string) =>
+    ipcRenderer.invoke('set-crontab-sudo-password', connectionId, password),
 })
 
 // Define the ElectronAPI type
@@ -434,4 +447,10 @@ export interface ElectronAPI {
   restartDockerContainer: (connectionId: string, containerId: string) => Promise<void>
 
   appReady: () => void
+
+  // Crontab operations
+  readCrontab: (connectionId: string) => Promise<string>
+  writeCrontab: (connectionId: string, content: string) => Promise<void>
+  validateCrontab: (content: string) => Promise<{ valid: boolean; error?: string }>
+  setCrontabSudoPassword: (connectionId: string, password: string) => Promise<void>
 }

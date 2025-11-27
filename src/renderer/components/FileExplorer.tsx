@@ -298,7 +298,7 @@ export default function FileExplorer({
     }
 
     const getSortIcon = (field: SortField) => {
-        if (sortField !== field) return '↕️'
+        if (sortField !== field) return ''
         return sortDirection === 'asc' ? '↑' : '↓'
     }
 

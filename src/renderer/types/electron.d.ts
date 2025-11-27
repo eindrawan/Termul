@@ -67,6 +67,12 @@ export interface ElectronAPI {
   // App lifecycle
   appReady: () => void
 
+  // Crontab operations
+  readCrontab: (connectionId: string, crontabType?: 'user' | 'root') => Promise<string>
+  writeCrontab: (connectionId: string, content: string, crontabType?: 'user' | 'root') => Promise<void>
+  validateCrontab: (content: string) => Promise<{ valid: boolean; error?: string }>
+  setCrontabSudoPassword: (connectionId: string, password: string) => Promise<void>
+
   // Remove all listeners
   removeAllListeners: (channel: string) => void
 }

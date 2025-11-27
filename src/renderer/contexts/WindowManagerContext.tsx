@@ -14,11 +14,11 @@ export interface WindowConfig {
         width: number
         height: number
     }
-    defaultPosition: {
+    defaultPosition?: {
         width: number
         height: number
     }
-    minSize: {
+    minSize?: {
         width: number
         height: number
     }
@@ -68,18 +68,21 @@ function windowManagerReducer(state: WindowManagerState, action: WindowManagerAc
             const newZIndex = state.highestZIndex + 1
 
             // Center window on screen
-            const centerX = (window.innerWidth - action.payload.defaultPosition.width) / 2
-            const centerY = (window.innerHeight - action.payload.defaultPosition.height) / 2
+            const payload = action.payload
+            const defaultWidth = payload.defaultPosition?.width || payload.defaultPosition?.width || 800
+            const defaultHeight = payload.defaultPosition?.height || payload.defaultPosition?.height || 600
+            const centerX = (window.innerWidth - defaultWidth) / 2
+            const centerY = (window.innerHeight - defaultHeight) / 2
 
             newWindows.set(action.payload.id, {
-                ...action.payload,
+                ...payload,
                 state: 'normal',
                 zIndex: newZIndex,
                 position: {
                     x: centerX,
                     y: centerY,
-                    width: action.payload.defaultPosition.width,
-                    height: action.payload.defaultPosition.height
+                    width: defaultWidth,
+                    height: defaultHeight
                 }
             })
 

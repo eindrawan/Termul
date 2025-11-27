@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 import { useTransfer } from '../contexts/TransferContext'
 import { FileSystemEntry, TransferDescriptor, Bookmark } from '../types'
@@ -7,11 +7,13 @@ import BookmarkDialog from './BookmarkDialog'
 import BookmarkList from './BookmarkList'
 import HistoryList from './HistoryList'
 import FileHistoryList from './FileHistoryList'
+import CrontabEditor from './CrontabEditor'
 import {
     BookmarkIcon as BookmarkHeroIcon,
     BookOpenIcon,
     ArrowsRightLeftIcon,
-    ClockIcon
+    ClockIcon,
+    CogIcon
 } from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
@@ -37,9 +39,29 @@ export default function FileManager({
     const [fileHistoryListOpen, setFileHistoryListOpen] = useState(false)
     const [fileHistoryListPosition, setFileHistoryListPosition] = useState({ x: 0, y: 0 })
     const [fileHistory, setFileHistory] = useState<any[]>([])
+    const [crontabEditorOpen, setCrontabEditorOpen] = useState(false)
+    const [crontabDropdownOpen, setCrontabDropdownOpen] = useState(false)
+    const [selectedCrontabType, setSelectedCrontabType] = useState<'user' | 'root'>('user')
+    const crontabDropdownRef = useRef<HTMLDivElement>(null)
 
     const { state: connectionState, dispatch } = useConnection()
     const { state: transferState, enqueueMutation, refetchQueue } = useTransfer()
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (crontabDropdownRef.current && !crontabDropdownRef.current.contains(event.target as Node)) {
+                setCrontabDropdownOpen(false)
+            }
+        }
+
+        if (crontabDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside)
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside)
+            }
+        }
+    }, [crontabDropdownOpen])
 
     const connection = connectionState.activeConnections.get(connectionId)
     const isConnected = connection?.status.connected || false
@@ -215,7 +237,7 @@ export default function FileManager({
 
     const handleOpenFileHistory = async () => {
         try {
-            const history = await window.electronAPI.getFileHistory(connection?.profile?.id)
+            const history = await window.electronAPI.getFileHistory()
             setFileHistory(history)
         } catch (error) {
             console.error('Failed to load file history:', error)
@@ -339,6 +361,41 @@ export default function FileManager({
                     >
                         <ClockIcon className="h-4 w-4" />
                     </button>
+                    <div className="relative" ref={crontabDropdownRef}>
+                        <button
+                            onClick={() => setCrontabDropdownOpen(!crontabDropdownOpen)}
+                            disabled={!isConnected}
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Crontab Editor"
+                        >
+                            <CogIcon className="h-4 w-4" />
+                        </button>
+
+                        {crontabDropdownOpen && (
+                            <div style={{ zIndex: 10000 }} className="absolute top-full right-0 mt-1 w-40 rounded-lg shadow-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                                <button
+                                    onClick={() => {
+                                        setSelectedCrontabType('user')
+                                        setCrontabDropdownOpen(false)
+                                        setCrontabEditorOpen(true)
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                                >
+                                    <span>User Crontab</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setSelectedCrontabType('root')
+                                        setCrontabDropdownOpen(false)
+                                        setCrontabEditorOpen(true)
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                                >
+                                    <span>Root Crontab</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
                         {!isConnected && 'Not connected'}
                     </div>
@@ -442,6 +499,15 @@ export default function FileManager({
                         y={fileHistoryListPosition.y}
                     />
                 )}
+
+                {/* Crontab Editor - Always rendered but manages its own visibility */}
+                <CrontabEditor
+                    connectionId={connectionId}
+                    connectionName={connection?.profile?.name || 'Remote Host'}
+                    crontabType={selectedCrontabType}
+                    isOpen={crontabEditorOpen}
+                    onClose={() => setCrontabEditorOpen(false)}
+                />
             </div>
         </div>
     )

@@ -11,7 +11,8 @@ import {
     TrashIcon,
     FolderIcon,
     DocumentIcon,
-    AtSymbolIcon
+    AtSymbolIcon,
+    EyeIcon,
 } from '@heroicons/react/24/outline'
 
 interface ContextMenuProps {
@@ -322,7 +323,16 @@ export default function ContextMenu({
                                 Download
                             </button>
                         )}
-                        {file.type === 'file' && (
+                        {file.type === 'file' && file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$/i) && (
+                            <button
+                                onClick={handleEdit}
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
+                            >
+                                <EyeIcon className="mr-2 h-4 w-4" />
+                                Open
+                            </button>
+                        )}
+                        {file.type === 'file' && !file.name.match(/\.jpg$|\.jpeg$|\.png$|\.gif$|\.bmp$|\.svg$/i) && (
                             <button
                                 onClick={handleEdit}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-gray-700 dark:text-gray-200"
