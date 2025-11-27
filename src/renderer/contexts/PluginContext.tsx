@@ -3,7 +3,10 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 export interface Plugin {
     id: string
     label: string
-    icon: React.ReactNode
+    icon: {
+        outline: React.ComponentType<{ className?: string }>
+        solid: React.ComponentType<{ className?: string }>
+    }
     component: React.ComponentType<{ connectionId: string; isActive: boolean }>
 }
 

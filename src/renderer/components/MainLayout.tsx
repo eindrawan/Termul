@@ -10,7 +10,8 @@ import WindowList from './WindowList'
 import WindowRenderer from './WindowRenderer'
 import FileEditorManager from './FileEditorManager'
 import { usePlugin } from '../contexts/PluginContext'
-import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import { PlusCircleIcon } from '@heroicons/react/24/solid'
 import PluginSelectionModal from './PluginSelectionModal'
 import { PluginTemplate, AVAILABLE_PLUGINS } from '../registry/PluginRegistry'
 
@@ -106,7 +107,13 @@ export default function MainLayout() {
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'
                                     }`}
                             >
-                                <span className="mr-2">{plugin.icon}</span>
+                                <span className="mr-2">
+                                    {activePluginId === plugin.id ? (
+                                        <plugin.icon.solid className="w-5 h-5" />
+                                    ) : (
+                                        <plugin.icon.outline className="w-5 h-5" />
+                                    )}
+                                </span>
                                 {plugin.label}
 
                                 {plugins.size > 1 && (
@@ -125,7 +132,7 @@ export default function MainLayout() {
                             className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors border-b-2 border-transparent"
                             title="Add New Tab"
                         >
-                            <PlusIcon className="w-5 h-5" />
+                            <PlusCircleIcon className="w-5 h-5" />
                         </button>
                     </div>
                 )}

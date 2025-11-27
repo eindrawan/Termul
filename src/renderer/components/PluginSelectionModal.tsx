@@ -34,7 +34,7 @@ export default function PluginSelectionModal({ isOpen, onClose, onSelect }: Plug
                             className="flex flex-col items-center justify-center p-6 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group text-center"
                         >
                             <span className="text-4xl mb-3 group-hover:scale-110 transition-transform duration-200">
-                                {plugin.icon}
+                                <plugin.icon.outline className="w-12 h-12" />
                             </span>
                             <span className="font-medium text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400">
                                 {plugin.label}

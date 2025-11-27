@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { XMarkIcon, DocumentCheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useWindowManager } from '../contexts/WindowManagerContext'
+import { useTheme } from '../contexts/ThemeContext'
+import Editor from '@monaco-editor/react'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 
 interface CrontabEditorProps {
@@ -13,6 +15,7 @@ interface CrontabEditorProps {
 
 export default function CrontabEditor({ connectionId, connectionName, crontabType = 'user', isOpen = true, onClose }: CrontabEditorProps) {
     const { registerWindow, unregisterWindow, getWindow, updateWindow } = useWindowManager()
+    const { theme: globalTheme } = useTheme()
     const [content, setContent] = useState('')
     const [originalContent, setOriginalContent] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -21,9 +24,15 @@ export default function CrontabEditor({ connectionId, connectionName, crontabTyp
     const [validationError, setValidationError] = useState<string | null>(null)
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
     const [sudoPassword, setSudoPassword] = useState('')
+    const editorRef = useRef<any>(null)
 
     // Generate unique ID for each CrontabEditor instance
     const windowId = `crontab-editor-${crontabType}-${connectionId}`
+
+    // Map global theme to Monaco editor theme
+    const getMonacoTheme = () => {
+        return globalTheme === 'dark' ? 'vs-dark' : 'vs'
+    }
 
     // Register/unregister window with WindowManager
     useEffect(() => {
@@ -74,6 +83,20 @@ export default function CrontabEditor({ connectionId, connectionName, crontabTyp
         }
     }, [isOpen, connectionId])
 
+    // Handle editor mount
+    const handleEditorDidMount = (editor: any, monaco: any) => {
+        editorRef.current = editor
+
+        // Configure editor options
+        editor.updateOptions({
+            wordWrap: 'on',
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fontSize: 14,
+            fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+        })
+    }
+
     // Update window content when state changes
     useEffect(() => {
         if (isOpen && windowId && getWindow(windowId)) {
@@ -97,26 +120,67 @@ export default function CrontabEditor({ connectionId, connectionName, crontabTyp
                             <div className="flex flex-col h-full">
                                 <div className="flex-1 flex overflow-hidden">
                                     {/* Editor */}
-                                    <div className="flex-1 p-4">
-                                        <div className="h-full flex flex-col">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Crontab Content
-                                                </label>
-                                                <button
-                                                    onClick={() => setContent(getCronHelp())}
-                                                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                                                >
-                                                    Insert Help Template
-                                                </button>
-                                            </div>
-                                            <textarea
+                                    <div className="flex-1 p-4 flex flex-col">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                Crontab Content
+                                            </label>
+                                            <button
+                                                onClick={() => {
+                                                    const helpText = getCronHelp()
+                                                    // Insert at cursor position or append
+                                                    if (editorRef.current) {
+                                                        const position = editorRef.current.getPosition()
+                                                        editorRef.current.executeEdits('insert-help', [{
+                                                            range: {
+                                                                startLineNumber: position?.lineNumber || 1,
+                                                                startColumn: position?.column || 1,
+                                                                endLineNumber: position?.lineNumber || 1,
+                                                                endColumn: position?.column || 1
+                                                            },
+                                                            text: helpText,
+                                                            forceMoveMarkers: true
+                                                        }])
+                                                    } else {
+                                                        setContent(prev => prev + '\n' + helpText)
+                                                    }
+                                                }}
+                                                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                                            >
+                                                Insert Help Template
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                                            <Editor
+                                                height="100%"
+                                                language="shell"
                                                 value={content}
-                                                onChange={(e) => handleContentChange(e.target.value)}
-                                                className="flex-1 w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400"
-                                                placeholder="Enter crontab entries here..."
-                                                disabled={isLoading || isSaving}
-                                                spellCheck={false}
+                                                onChange={(value) => handleContentChange(value || '')}
+                                                onMount={handleEditorDidMount}
+                                                theme={getMonacoTheme()}
+                                                options={{
+                                                    selectOnLineNumbers: true,
+                                                    automaticLayout: true,
+                                                    wordWrap: 'on',
+                                                    minimap: { enabled: false },
+                                                    scrollBeyondLastLine: false,
+                                                    fontSize: 14,
+                                                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                                                    renderLineHighlight: 'line',
+                                                    scrollbar: {
+                                                        vertical: 'auto',
+                                                        horizontal: 'auto',
+                                                        useShadows: false,
+                                                        verticalHasArrows: false,
+                                                        horizontalHasArrows: false,
+                                                    },
+                                                }}
+                                                loading={
+                                                    <div className="flex items-center justify-center h-full">
+                                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                                                        <span className="ml-2">Loading editor...</span>
+                                                    </div>
+                                                }
                                             />
                                         </div>
                                     </div>
@@ -214,7 +278,7 @@ export default function CrontabEditor({ connectionId, connectionName, crontabTyp
                 }
             })
         }
-    }, [isOpen, connectionId, connectionName, content, originalContent, error, isLoading, isSaving, validationError])
+    }, [isOpen, connectionId, connectionName, content, originalContent, error, isLoading, isSaving, validationError, globalTheme])
 
     const loadCrontab = async () => {
         setIsLoading(true)
