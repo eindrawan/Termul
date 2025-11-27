@@ -25,9 +25,28 @@ export class FileService {
   }
 
   public async getSftpClient(connectionId: string): Promise<SFTPClient> {
+    // Check if connection is still active
+    const connectionStatus = this.connectionService.getStatus(connectionId)
+    if (!connectionStatus || !connectionStatus.connected) {
+      throw new Error('Connection is not active')
+    }
+
     const cachedSftp = this.sftpCache.get(connectionId)
     if (cachedSftp) {
-      return cachedSftp
+      try {
+        // Test if the connection is still alive
+        await cachedSftp.list('.')
+        return cachedSftp
+      } catch (testError) {
+        console.warn(`SFTP connection test failed, creating new connection:`, (testError as Error).message)
+        // Remove stale connection from cache
+        this.sftpCache.delete(connectionId)
+        try {
+          await cachedSftp.end()
+        } catch (endError) {
+          // Ignore cleanup errors
+        }
+      }
     }
 
     const connectionConfig = this.connectionService.getConnectionConfig(connectionId)
@@ -36,15 +55,21 @@ export class FileService {
     }
 
     const sftp = new SFTPClient()
-    await sftp.connect({
-      host: connectionConfig.host,
-      port: connectionConfig.port,
-      username: connectionConfig.username,
-      password: connectionConfig.password,
-      privateKey: connectionConfig.privateKey,
-      passphrase: connectionConfig.passphrase,
-      readyTimeout: 30000,
-    })
+    try {
+      await sftp.connect({
+        host: connectionConfig.host,
+        port: connectionConfig.port,
+        username: connectionConfig.username,
+        password: connectionConfig.password,
+        privateKey: connectionConfig.privateKey,
+        passphrase: connectionConfig.passphrase,
+        readyTimeout: 30000,
+        retries: 2,
+        retry_factor: 2
+      })
+    } catch (connectError) {
+      throw new Error(`Failed to establish SFTP connection: ${(connectError as Error).message}`)
+    }
 
     this.sftpCache.set(connectionId, sftp)
     return sftp

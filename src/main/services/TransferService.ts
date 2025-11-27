@@ -118,12 +118,24 @@ export class TransferService {
   private async startTransfer(transfer: TransferItem): Promise<void> {
     console.log(`Starting transfer ${transfer.id}:`, transfer)
 
+    // Check if connection is still active
+    const connectionStatus = this.connectionService.getStatus(transfer.connectionId)
+    if (!connectionStatus || !connectionStatus.connected) {
+      console.error(`Transfer ${transfer.id}: Connection not active`)
+      await this.db.updateTransfer(transfer.id, {
+        status: 'failed',
+        error: 'Connection to remote host is not active'
+      })
+      this.emitTransferUpdate(transfer.id)
+      return
+    }
+
     const ssh = this.connectionService.getSshClient(transfer.connectionId)
     if (!ssh) {
       console.error(`Transfer ${transfer.id}: SSH client not available`)
       await this.db.updateTransfer(transfer.id, {
         status: 'failed',
-        error: 'Not connected to remote host'
+        error: 'SSH client not available'
       })
       this.emitTransferUpdate(transfer.id)
       return
@@ -149,6 +161,16 @@ export class TransferService {
         return
       }
 
+      // Validate paths before starting transfer
+      if (!transfer.sourcePath || !transfer.destinationPath) {
+        await this.db.updateTransfer(transfer.id, {
+          status: 'failed',
+          error: 'Source and destination paths are required'
+        })
+        this.emitTransferUpdate(transfer.id)
+        return
+      }
+
       const worker = new Worker(join(__dirname, '../../workers/transfer-worker.js'), {
         workerData: {
           transfer,
@@ -159,6 +181,9 @@ export class TransferService {
             password: sshConfig.password,
             privateKey: sshConfig.privateKey,
             passphrase: sshConfig.passphrase,
+            readyTimeout: 30000, // 30 seconds timeout
+            retries: 2, // Retry twice
+            retry_factor: 2 // Exponential backoff
           },
         } as TransferWorkerData,
         stdout: true,
@@ -224,7 +249,7 @@ export class TransferService {
         console.error(`Transfer worker error for ${transfer.id}:`, error)
         this.db.updateTransfer(transfer.id, {
           status: 'failed',
-          error: error.message,
+          error: `Worker error: ${error.message}`,
           completedAt: Math.floor(Date.now() / 1000)
         })
         this.emitTransferUpdate(transfer.id)
@@ -235,6 +260,18 @@ export class TransferService {
         console.log(`Transfer worker ${transfer.id} exited with code ${code}`)
         if (code !== 0) {
           console.error(`Transfer worker ${transfer.id} stopped with exit code ${code}`)
+          // Update transfer status if not already updated by worker
+          this.db.getQueue().then(queue => {
+            const transferInQueue = queue.find(t => t.id === transfer.id)
+            if (transferInQueue && transferInQueue.status === 'active') {
+              this.db.updateTransfer(transfer.id, {
+                status: 'failed',
+                error: `Worker process exited with code ${code}`,
+                completedAt: Math.floor(Date.now() / 1000)
+              })
+              this.emitTransferUpdate(transfer.id)
+            }
+          })
         }
       })
       
