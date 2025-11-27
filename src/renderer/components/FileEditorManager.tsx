@@ -1,5 +1,6 @@
 import React from 'react'
 import FileEditor from './FileEditor'
+import ImageViewer from './ImageViewer'
 
 interface FileEditorInstance {
     id: string
@@ -63,16 +64,33 @@ export default function FileEditorManager() {
 
     return (
         <>
-            {editors.map((editor) => (
-                <FileEditor
-                    key={editor.id}
-                    file={editor.file}
-                    isOpen={true}
-                    onClose={() => closeFileEditor(editor.id)}
-                    connectionId={editor.connectionId}
-                    isLocal={editor.isLocal}
-                />
-            ))}
+            {editors.map((editor) => {
+                const isImage = /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(editor.file.name)
+
+                if (isImage) {
+                    return (
+                        <ImageViewer
+                            key={editor.id}
+                            file={editor.file}
+                            isOpen={true}
+                            onClose={() => closeFileEditor(editor.id)}
+                            connectionId={editor.connectionId}
+                            isLocal={editor.isLocal}
+                        />
+                    )
+                }
+
+                return (
+                    <FileEditor
+                        key={editor.id}
+                        file={editor.file}
+                        isOpen={true}
+                        onClose={() => closeFileEditor(editor.id)}
+                        connectionId={editor.connectionId}
+                        isLocal={editor.isLocal}
+                    />
+                )
+            })}
         </>
     )
 }

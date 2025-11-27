@@ -147,6 +147,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeRemoteFile: (connectionId: string, path: string, content: string) =>
     ipcRenderer.invoke('write-remote-file', connectionId, path, content),
 
+  readLocalFileBase64: (path: string) =>
+    ipcRenderer.invoke('read-local-file-base64', path),
+
+  readRemoteFileBase64: (connectionId: string, path: string) =>
+    ipcRenderer.invoke('read-remote-file-base64', connectionId, path),
+
   // File creation operations
   createLocalDirectory: (path: string) =>
     ipcRenderer.invoke('create-local-directory', path),
@@ -385,6 +391,8 @@ export interface ElectronAPI {
   writeLocalFile: (path: string, content: string) => Promise<any>
   readRemoteFile: (connectionId: string, path: string) => Promise<string>
   writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
+  readLocalFileBase64: (path: string) => Promise<string>
+  readRemoteFileBase64: (connectionId: string, path: string) => Promise<string>
 
   // File creation operations
   createLocalDirectory: (path: string) => Promise<any>

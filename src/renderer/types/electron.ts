@@ -38,6 +38,8 @@ export interface ElectronAPI {
   writeLocalFile: (path: string, content: string) => Promise<any>
   readRemoteFile: (connectionId: string, path: string) => Promise<string>
   writeRemoteFile: (connectionId: string, path: string, content: string) => Promise<any>
+  readLocalFileBase64: (path: string) => Promise<string>
+  readRemoteFileBase64: (connectionId: string, path: string) => Promise<string>
 
   // File creation operations
   createLocalDirectory: (path: string) => Promise<any>
@@ -85,6 +87,7 @@ export interface ElectronAPI {
   showSaveDialog: (options: any) => Promise<any>
 
   // File History
+  addFileHistory: (connectionId: string | null, path: string) => Promise<void>
   getFileHistory: () => Promise<any[]>
   clearFileHistory: () => Promise<void>
   removeFileHistoryItem: (id: string) => Promise<void>

@@ -337,6 +337,24 @@ export function setupIpcHandlers() {
     }
   })
 
+  ipcMain.handle('read-local-file-base64', async (_, path: string) => {
+    try {
+      return await fileService.readLocalFileBase64(path)
+    } catch (error) {
+      console.error('Read local file base64 error:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('read-remote-file-base64', async (_, connectionId: string, path: string) => {
+    try {
+      return await fileService.readRemoteFileBase64(connectionId, path)
+    } catch (error) {
+      console.error('Read remote file base64 error:', error)
+      throw error
+    }
+  })
+
   // File creation handlers
   ipcMain.handle('create-local-directory', async (_, path: string) => {
     try {

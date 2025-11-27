@@ -336,6 +336,29 @@ export class FileService {
     }
   }
 
+  async readLocalFileBase64(path: string): Promise<string> {
+    try {
+      const buffer = await fs.readFile(path)
+      return buffer.toString('base64')
+    } catch (error) {
+      console.error(`Failed to read local file base64 ${path}:`, error)
+      throw error
+    }
+  }
+
+  async readRemoteFileBase64(connectionId: string, path: string): Promise<string> {
+    try {
+      const sftp = await this.getSftpClient(connectionId)
+      const result = await sftp.get(path)
+      const buffer = Buffer.isBuffer(result) ? result : Buffer.from(result as string) // Should be buffer usually
+      return buffer.toString('base64')
+    } catch (error) {
+      console.error(`Failed to read remote file base64 ${path}:`, error)
+      await this.clearSftpCache(connectionId)
+      throw error
+    }
+  }
+
   async createLocalFile(path: string, content: string = ''): Promise<void> {
     try {
       await fs.writeFile(path, content, 'utf-8')
