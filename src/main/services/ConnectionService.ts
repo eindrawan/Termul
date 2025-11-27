@@ -29,8 +29,20 @@ export class ConnectionService {
     this.fileService = fileService
   }
 
-  async connect(profile: ConnectionProfile): Promise<{ connectionId: string; status: ConnectionStatus }> {
-    const connectionId = randomUUID()
+  async connect(profile: ConnectionProfile, reuseConnectionId?: string): Promise<{ connectionId: string; status: ConnectionStatus }> {
+    const connectionId = reuseConnectionId || randomUUID()
+
+    // If reusing an ID, check if there's an existing connection and clean it up
+    if (reuseConnectionId) {
+      const existingConnection = this.connections.get(reuseConnectionId)
+      if (existingConnection) {
+        try {
+          existingConnection.ssh.dispose()
+        } catch (e) {
+          console.error('Error disposing existing connection during reconnect:', e)
+        }
+      }
+    }
 
     try {
       const status: ConnectionStatus = {
@@ -119,6 +131,54 @@ export class ConnectionService {
 
       this.emitStatusChange(connectionId, connectedStatus)
 
+      // Add error listener to the underlying connection to catch ECONNRESET and other socket errors
+      // This prevents the "Uncaught Exception" dialog in the main process
+      if (ssh.connection) {
+        ssh.connection.on('error', (err: any) => {
+          console.error(`SSH Connection Error (${connectionId}):`, err)
+
+          const errorStatus: ConnectionStatus = {
+            connected: false,
+            connecting: false,
+            host: profile.host,
+            username: profile.username,
+            error: err.message || 'Connection error'
+          }
+
+          // Update status and notify renderer
+          const connection = this.connections.get(connectionId)
+          if (connection) {
+            connection.status = errorStatus
+            this.emitStatusChange(connectionId, errorStatus)
+
+            // We don't remove the connection immediately so the user can try to reconnect
+            // But we should probably dispose the SSH client to clean up
+            try {
+              connection.ssh.dispose()
+            } catch (disposeError) {
+              console.error('Error disposing SSH client after connection error:', disposeError)
+            }
+          }
+        })
+
+        ssh.connection.on('end', () => {
+          console.log(`SSH Connection Ended (${connectionId})`)
+          const status: ConnectionStatus = {
+            connected: false,
+            connecting: false,
+            host: profile.host,
+            username: profile.username,
+            error: 'Connection closed by remote host'
+          }
+
+          const connection = this.connections.get(connectionId)
+          if (connection) {
+            connection.status = status
+            this.emitStatusChange(connectionId, status)
+          }
+        })
+      }
+
       return { connectionId, status: connectedStatus }
     } catch (error) {
       const errorStatus: ConnectionStatus = {
@@ -131,6 +191,15 @@ export class ConnectionService {
       this.emitStatusChange(connectionId, errorStatus)
       throw error
     }
+  }
+
+  async reconnect(connectionId: string): Promise<{ connectionId: string; status: ConnectionStatus }> {
+    const connection = this.connections.get(connectionId)
+    if (!connection) {
+      throw new Error('Connection not found')
+    }
+
+    return this.connect(connection.profile, connectionId)
   }
 
   async disconnect(connectionId: string): Promise<void> {
@@ -156,6 +225,11 @@ export class ConnectionService {
   getStatus(connectionId: string): ConnectionStatus | null {
     const connection = this.connections.get(connectionId)
     return connection ? connection.status : null
+  }
+
+  isConnected(connectionId: string): boolean {
+    const status = this.getStatus(connectionId)
+    return status?.connected || false
   }
 
   getAllConnections(): Map<string, ConnectionInstance> {

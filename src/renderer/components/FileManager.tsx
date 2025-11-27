@@ -481,7 +481,10 @@ export default function FileManager({
                 {/* File History List */}
                 {fileHistoryListOpen && (
                     <FileHistoryList
-                        history={fileHistory}
+                        history={fileHistory.filter(item => {
+                            const currentProfileId = connection?.profile?.id || null
+                            return item.connectionId === currentProfileId
+                        })}
                         onClose={() => setFileHistoryListOpen(false)}
                         onClearHistory={handleClearFileHistory}
                         onOpenFile={handleOpenFileFromHistory}

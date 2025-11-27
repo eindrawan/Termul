@@ -15,7 +15,23 @@ export class TerminalService {
   }
 
   async openTerminal(connectionId: string): Promise<TerminalSession> {
-    const ssh = this.connectionService.getSshClient(connectionId)
+    let ssh = this.connectionService.getSshClient(connectionId)
+
+    // If not connected, try to reconnect if we have the profile
+    if (!ssh || !this.connectionService.isConnected(connectionId)) {
+      const profile = this.connectionService.getConnectionProfile(connectionId)
+      if (profile) {
+        try {
+          console.log(`Connection ${connectionId} lost, attempting to reconnect...`)
+          await this.connectionService.reconnect(connectionId)
+          ssh = this.connectionService.getSshClient(connectionId)
+        } catch (error) {
+          console.error('Failed to reconnect:', error)
+          throw new Error('Failed to reconnect to remote host')
+        }
+      }
+    }
+
     if (!ssh) {
       throw new Error('Not connected to remote host')
     }
@@ -52,16 +68,16 @@ export class TerminalService {
       return session
     } catch (error: any) {
       console.error('Failed to open terminal:', error)
-      
+
       // Handle specific SSH connection errors
       if (error.message?.includes('Not connected to server') ||
-          error.message?.includes('Connection closed') ||
-          error.message?.includes('Socket is closed')) {
+        error.message?.includes('Connection closed') ||
+        error.message?.includes('Socket is closed')) {
         this.emitTerminalError(connectionId, 'Connection to server was lost. Please reconnect.')
         // Close the terminal to clean up
         await this.closeTerminal(connectionId)
       }
-      
+
       throw error
     }
   }
@@ -115,18 +131,18 @@ export class TerminalService {
 
     // Buffer to accumulate data chunks
     let buffer = Buffer.alloc(0)
-    
+
     shellStream.on('data', (data: Buffer) => {
       // Accumulate data in buffer
       buffer = Buffer.concat([buffer, data])
-      
+
       // Process buffer when it reaches a reasonable size or after a timeout
       if (buffer.length > 1024 || buffer.includes('\n'.charCodeAt(0))) {
         this.emitTerminalOutput(connectionId, buffer.toString())
         buffer = Buffer.alloc(0)
       }
     })
-    
+
     // Set up a timer to flush any remaining buffer data periodically
     const flushInterval = setInterval(() => {
       if (buffer.length > 0) {
@@ -161,11 +177,11 @@ export class TerminalService {
     shellStream.on('error', (error: Error) => {
       console.error('Terminal stream error:', error)
       this.emitTerminalOutput(connectionId, `\r\n\x1b[31mError: ${error.message}\x1b[0m\r\n`)
-      
+
       // Handle specific SSH connection errors
       if (error.message?.includes('Not connected to server') ||
-          error.message?.includes('Connection closed') ||
-          error.message?.includes('Socket is closed')) {
+        error.message?.includes('Connection closed') ||
+        error.message?.includes('Socket is closed')) {
         this.emitTerminalError(connectionId, 'Connection to server was lost. Please reconnect.')
         // Close the terminal to clean up
         this.closeTerminal(connectionId)

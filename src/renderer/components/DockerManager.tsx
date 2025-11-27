@@ -5,6 +5,7 @@ import { useWindowManager } from '../contexts/WindowManagerContext'
 import { ArrowPathIcon, CommandLineIcon, DocumentTextIcon, CubeIcon } from '@heroicons/react/24/outline'
 import DockerLogsViewer from './DockerLogsViewer'
 import DockerShellViewer from './DockerShellViewer'
+import ConfirmDialog from './ConfirmDialog'
 
 interface DockerManagerProps {
     connectionId: string
@@ -37,8 +38,9 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
     const [pendingContainer, setPendingContainer] = useState<DockerContainer | null>(null)
     const [restartingContainers, setRestartingContainers] = useState<Set<string>>(new Set())
     const [pinnedContainers, setPinnedContainers] = useState<Set<string>>(new Set())
+    const [showReconnectDialog, setShowReconnectDialog] = useState(false)
 
-    const { state: connectionState } = useConnection()
+    const { state: connectionState, connectMutation } = useConnection()
     const { registerWindow, focusWindow, getWindow } = useWindowManager()
 
     const connection = connectionState.activeConnections.get(connectionId)
@@ -146,9 +148,30 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                 handleSudoRequired('list')
             } else {
                 setError(message)
+                if (message.includes('ECONNRESET') || message.includes('Error invoking remote method') || message.includes('Connection error')) {
+                    setShowReconnectDialog(true)
+                }
             }
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleReconnect = async () => {
+        if (!connection?.profile) return
+
+        try {
+            setLoading(true)
+            setError(null)
+            setShowReconnectDialog(false)
+            await connectMutation.mutateAsync(connection.profile)
+            await fetchContainers()
+        } catch (err) {
+            console.error('Failed to reconnect:', err)
+            setError('Failed to reconnect: ' + (err instanceof Error ? err.message : String(err)))
+            setLoading(false)
+            // If reconnection fails, show the dialog again so they can retry
+            setShowReconnectDialog(true)
         }
     }
 
@@ -354,6 +377,17 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showReconnectDialog}
+                title="Connection Lost"
+                message="The connection to the server was lost. Do you want to reconnect?"
+                confirmText="Reconnect"
+                cancelText="Cancel"
+                onConfirm={handleReconnect}
+                onCancel={() => setShowReconnectDialog(false)}
+                variant="warning"
+            />
         </div>
     )
 }

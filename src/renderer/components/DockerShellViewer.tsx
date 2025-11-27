@@ -61,6 +61,29 @@ export default function DockerShellViewer({ connectionId, containerId }: DockerS
             }
         })
 
+        // Auto-copy on selection
+        term.onSelectionChange(() => {
+            const selection = term.getSelection()
+            if (selection && selection.length > 0) {
+                navigator.clipboard.writeText(selection).catch(err => {
+                    console.error('Failed to auto-copy selection:', err)
+                })
+            }
+        })
+
+        // Right-click to paste
+        term.element?.addEventListener('contextmenu', async (e) => {
+            e.preventDefault()
+            try {
+                const text = await navigator.clipboard.readText()
+                if (text) {
+                    term.paste(text)
+                }
+            } catch (err) {
+                console.error('Failed to paste from clipboard:', err)
+            }
+        })
+
         // Start shell
         const startShell = async () => {
             try {
