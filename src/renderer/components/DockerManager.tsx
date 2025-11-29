@@ -6,6 +6,7 @@ import { ArrowPathIcon, CommandLineIcon, DocumentTextIcon, CubeIcon } from '@her
 import DockerLogsViewer from './DockerLogsViewer'
 import DockerShellViewer from './DockerShellViewer'
 import ConfirmDialog from './ConfirmDialog'
+import { Tooltip } from './Tooltip'
 
 interface DockerManagerProps {
     connectionId: string
@@ -259,13 +260,14 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                     <CubeIcon className="h-8 w-8 mr-3 text-blue-500" />
                     Docker Containers
                 </h2>
-                <button
-                    onClick={fetchContainers}
-                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                    title="Refresh"
-                >
-                    <ArrowPathIcon className={`h-6 w-6 text-gray-600 dark:text-gray-300 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+                <Tooltip content="Refresh">
+                    <button
+                        onClick={fetchContainers}
+                        className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <ArrowPathIcon className={`h-6 w-6 text-gray-600 dark:text-gray-300 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                </Tooltip>
             </div>
 
             {error && (
@@ -280,30 +282,37 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                     <div key={container.ID} className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border-l-4 ${container.Status.startsWith('Up') ? 'border-green-500' : 'border-gray-400'} transition-all hover:shadow-lg relative`}>
                         <div className="p-5">
                             <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate" title={container.Names}>
-                                    {container.Names}
-                                </h3>
+                                <Tooltip content={container.Names}>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+                                        {container.Names}
+                                    </h3>
+                                </Tooltip>
                                 <div className="flex space-x-1">
-                                    <button
-                                        onClick={() => togglePin(container.ID)}
-                                        className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${pinnedContainers.has(container.ID) ? 'text-yellow-500' : 'text-gray-400'}`}
-                                        title={pinnedContainers.has(container.ID) ? "Unpin" : "Pin"}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a.75.75 0 00.75.75h10.5a.75.75 0 00.75-.75v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                        </svg>
-                                    </button>
+                                    <Tooltip content={pinnedContainers.has(container.ID) ? "Unpin" : "Pin"}>
+                                        <button
+                                            onClick={() => togglePin(container.ID)}
+                                            className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${pinnedContainers.has(container.ID) ? 'text-yellow-500' : 'text-gray-400'}`}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                                <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a.75.75 0 00.75.75h10.5a.75.75 0 00.75-.75v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </Tooltip>
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${container.Status.startsWith('Up') ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>
                                         {container.Status.startsWith('Up') ? 'Running' : 'Stopped'}
                                     </span>
                                 </div>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1 truncate" title={container.Image}>
-                                <span className="font-medium">Image:</span> {container.Image}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 truncate" title={container.Ports}>
-                                <span className="font-medium">Ports:</span> {container.Ports || 'None'}
-                            </p>
+                            <Tooltip content={container.Image}>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1 truncate">
+                                    <span className="font-medium">Image:</span> {container.Image}
+                                </p>
+                            </Tooltip>
+                            <Tooltip content={container.Ports}>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 truncate">
+                                    <span className="font-medium">Ports:</span> {container.Ports || 'None'}
+                                </p>
+                            </Tooltip>
 
                             <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div className="flex space-x-2">
@@ -323,14 +332,15 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
                                         Shell
                                     </button>
                                 </div>
-                                <button
-                                    onClick={() => handleRestart(container)}
-                                    disabled={restartingContainers.has(container.ID)}
-                                    className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400 ${restartingContainers.has(container.ID) ? 'animate-spin' : ''}`}
-                                    title="Restart"
-                                >
-                                    <ArrowPathIcon className="h-5 w-5" />
-                                </button>
+                                <Tooltip content="Restart">
+                                    <button
+                                        onClick={() => handleRestart(container)}
+                                        disabled={restartingContainers.has(container.ID)}
+                                        className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400 ${restartingContainers.has(container.ID) ? 'animate-spin' : ''}`}
+                                    >
+                                        <ArrowPathIcon className="h-5 w-5" />
+                                    </button>
+                                </Tooltip>
                             </div>
                         </div>
                     </div>

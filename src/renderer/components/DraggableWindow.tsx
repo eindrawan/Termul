@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MinusIcon, Square2StackIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 
 interface DraggableWindowProps {
     title: string
@@ -177,27 +178,30 @@ export default function DraggableWindow({
                     )}
                 </div>
                 <div className="flex items-center space-x-1 ml-2">
-                    <button
-                        onClick={handleMinimize}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
-                        title="Minimize"
-                    >
-                        <MinusIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={handleMaximize}
-                        className="p-1 hover:bg-gray-700 rounded transition-colors"
-                        title={isMaximized ? "Restore" : "Maximize"}
-                    >
-                        <Square2StackIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="p-1 hover:bg-red-600 rounded transition-colors"
-                        title="Close"
-                    >
-                        <XMarkIcon className="h-4 w-4" />
-                    </button>
+                    <Tooltip content="Minimize">
+                        <button
+                            onClick={handleMinimize}
+                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        >
+                            <MinusIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content={isMaximized ? "Restore" : "Maximize"}>
+                        <button
+                            onClick={handleMaximize}
+                            className="p-1 hover:bg-gray-700 rounded transition-colors"
+                        >
+                            <Square2StackIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Close">
+                        <button
+                            onClick={onClose}
+                            className="p-1 hover:bg-red-600 rounded transition-colors"
+                        >
+                            <XMarkIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
 

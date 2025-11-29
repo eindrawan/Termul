@@ -16,6 +16,7 @@ import {
     CogIcon
 } from '@heroicons/react/24/outline'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
+import { Tooltip } from './Tooltip'
 
 interface FileManagerProps {
     connectionId: string
@@ -309,67 +310,72 @@ export default function FileManager({
                     </button>
                 </div>
                 <div className="flex items-center space-x-3">
-                    <button
-                        onClick={() => setBookmarkDialogOpen(true)}
-                        disabled={!isConnected}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
-                        title="Save bookmark"
-                    >
-                        <BookmarkHeroIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setBookmarkListPosition({
-                                x: rect.left,
-                                y: rect.bottom + 2
-                            })
-                            setBookmarkListOpen(true)
-                        }}
-                        disabled={bookmarks.length === 0}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
-                        title="View bookmarks"
-                    >
-                        <BookOpenIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setHistoryListPosition({
-                                x: rect.left,
-                                y: rect.bottom + 2
-                            })
-                            setHistoryListOpen(true)
-                        }}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Transfer history"
-                    >
-                        <ArrowsRightLeftIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setFileHistoryListPosition({
-                                x: rect.left,
-                                y: rect.bottom + 2
-                            })
-                            handleOpenFileHistory()
-                            setFileHistoryListOpen(true)
-                        }}
-                        className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="Opened files history"
-                    >
-                        <ClockIcon className="h-4 w-4" />
-                    </button>
-                    <div className="relative" ref={crontabDropdownRef}>
+                    <Tooltip content="Save bookmark">
                         <button
-                            onClick={() => setCrontabDropdownOpen(!crontabDropdownOpen)}
+                            onClick={() => setBookmarkDialogOpen(true)}
                             disabled={!isConnected}
-                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            title="Crontab Editor"
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
                         >
-                            <CogIcon className="h-4 w-4" />
+                            <BookmarkHeroIcon className="h-4 w-4" />
                         </button>
+                    </Tooltip>
+                    <Tooltip content="View bookmarks" position="bottom">
+                        <button
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setBookmarkListPosition({
+                                    x: rect.left,
+                                    y: rect.bottom + 2
+                                })
+                                setBookmarkListOpen(true)
+                            }}
+                            disabled={bookmarks.length === 0}
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
+                        >
+                            <BookOpenIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Transfer history">
+                        <button
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHistoryListPosition({
+                                    x: rect.left,
+                                    y: rect.bottom + 2
+                                })
+                                setHistoryListOpen(true)
+                            }}
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                            <ArrowsRightLeftIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Opened files history">
+                        <button
+                            onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setFileHistoryListPosition({
+                                    x: rect.left,
+                                    y: rect.bottom + 2
+                                })
+                                handleOpenFileHistory()
+                                setFileHistoryListOpen(true)
+                            }}
+                            className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                            <ClockIcon className="h-4 w-4" />
+                        </button>
+                    </Tooltip>
+                    <div className="relative" ref={crontabDropdownRef}>
+                        <Tooltip content="Crontab Editor">
+                            <button
+                                onClick={() => setCrontabDropdownOpen(!crontabDropdownOpen)}
+                                disabled={!isConnected}
+                                className="p-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <CogIcon className="h-4 w-4" />
+                            </button>
+                        </Tooltip>
 
                         {crontabDropdownOpen && (
                             <div style={{ zIndex: 10000 }} className="absolute top-full right-0 mt-1 w-40 rounded-lg shadow-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">

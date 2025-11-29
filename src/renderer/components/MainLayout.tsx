@@ -14,6 +14,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 import { PlusCircleIcon } from '@heroicons/react/24/solid'
 import PluginSelectionModal from './PluginSelectionModal'
 import { PluginTemplate, AVAILABLE_PLUGINS } from '../registry/PluginRegistry'
+import { Tooltip } from './Tooltip'
 
 export default function MainLayout() {
     const { plugins, registerPlugin, unregisterPlugin } = usePlugin()
@@ -99,41 +100,43 @@ export default function MainLayout() {
                 {currentConnection && (
                     <div className="flex border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                         {Array.from(plugins.values()).map((plugin) => (
-                            <button
-                                key={plugin.id}
-                                onClick={() => handleTabChange(plugin.id)}
-                                className={`group relative flex items-center px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activePluginId === plugin.id
-                                    ? 'border-primary-500 text-primary-600 dark:border-primary-400 dark:text-gray-300'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'
-                                    }`}
-                            >
-                                <span className="mr-2">
-                                    {activePluginId === plugin.id ? (
-                                        <plugin.icon.solid className="w-5 h-5" />
-                                    ) : (
-                                        <plugin.icon.outline className="w-5 h-5" />
-                                    )}
-                                </span>
-                                {plugin.label}
-
-                                {plugins.size > 1 && (
-                                    <span
-                                        onClick={(e) => handleCloseTab(e, plugin.id)}
-                                        className={`ml-2 p-0.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all ${activePluginId === plugin.id ? 'opacity-100' : ''
-                                            }`}
-                                    >
-                                        <XMarkIcon className="w-3 h-3" />
+                            <Tooltip key={plugin.id} content={plugin.label} position="bottom">
+                                <button
+                                    onClick={() => handleTabChange(plugin.id)}
+                                    className={`group relative flex items-center px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activePluginId === plugin.id
+                                        ? 'border-primary-500 text-primary-600 dark:border-primary-400 dark:text-gray-300'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'
+                                        }`}
+                                >
+                                    <span className="mr-2">
+                                        {activePluginId === plugin.id ? (
+                                            <plugin.icon.solid className="w-5 h-5" />
+                                        ) : (
+                                            <plugin.icon.outline className="w-5 h-5" />
+                                        )}
                                     </span>
-                                )}
-                            </button>
+                                    {plugin.label}
+
+                                    {plugins.size > 1 && (
+                                        <span
+                                            onClick={(e) => handleCloseTab(e, plugin.id)}
+                                            className={`ml-2 p-0.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all ${activePluginId === plugin.id ? 'opacity-100' : ''
+                                                }`}
+                                        >
+                                            <XMarkIcon className="w-3 h-3" />
+                                        </span>
+                                    )}
+                                </button>
+                            </Tooltip>
                         ))}
-                        <button
-                            onClick={handleAddTab}
-                            className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors border-b-2 border-transparent"
-                            title="Add New Tab"
-                        >
-                            <PlusCircleIcon className="w-5 h-5" />
-                        </button>
+                        <Tooltip content="Add New Tab" position="bottom">
+                            <button
+                                onClick={handleAddTab}
+                                className="px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors border-b-2 border-transparent"
+                            >
+                                <PlusCircleIcon className="w-5 h-5" />
+                            </button>
+                        </Tooltip>
                     </div>
                 )}
 

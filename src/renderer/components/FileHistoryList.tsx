@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { ClockIcon, DocumentIcon, TrashIcon } from '@heroicons/react/24/outline'
 import ConfirmDialog from './ConfirmDialog'
+import { Tooltip } from './Tooltip'
 
 interface FileHistoryItem {
     id: string
@@ -128,15 +129,16 @@ export default function FileHistoryList({
                     Recently Opened Files
                 </div>
                 {onClearHistory && (
-                    <button
-                        onClick={() => {
-                            onClearHistory()
-                        }}
-                        className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-                        title="Clear history"
-                    >
-                        <TrashIcon className="h-3 w-3" />
-                    </button>
+                    <Tooltip content="Clear history">
+                        <button
+                            onClick={() => {
+                                onClearHistory()
+                            }}
+                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                        >
+                            <TrashIcon className="h-3 w-3" />
+                        </button>
+                    </Tooltip>
                 )}
             </div>
 
@@ -156,25 +158,30 @@ export default function FileHistoryList({
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 min-w-0 pr-2">
                                         <div className="flex items-center mb-1">
-                                            <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate block flex-1" title={getFileName(item.path)}>
-                                                {getFileName(item.path)}
-                                            </span>
+                                            <Tooltip content={getFileName(item.path)}>
+                                                <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate block flex-1">
+                                                    {getFileName(item.path)}
+                                                </span>
+                                            </Tooltip>
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mb-1" title={item.path}>
-                                            {truncatePath(item.path)}
-                                        </div>
+                                        <Tooltip content={item.path}>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate mb-1">
+                                                {truncatePath(item.path)}
+                                            </div>
+                                        </Tooltip>
                                         <div className="flex justify-between items-center text-xs text-gray-400 dark:text-gray-500">
                                             <span>{item.connectionId ? 'Remote' : 'Local'}</span>
                                             <span>{formatDate(item.lastOpenedAt)}</span>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={(e) => handleDelete(e, item.id, item.path)}
-                                        className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs p-1"
-                                        title="Remove from this list"
-                                    >
-                                        ✕
-                                    </button>
+                                    <Tooltip content="Remove History" position='left'>
+                                        <button
+                                            onClick={(e) => handleDelete(e, item.id, item.path)}
+                                            className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs p-1"
+                                        >
+                                            ✕
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
                         ))}

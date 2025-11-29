@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { Cog6ToothIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 
 export default function SettingsMenu() {
     const { theme, toggleTheme } = useTheme()
@@ -22,13 +23,14 @@ export default function SettingsMenu() {
 
     return (
         <div className="relative" ref={menuRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 bg-gray-100 text-gray-700 hover:bg-gray-200"
-                title="Settings"
-            >
-                <Cog6ToothIcon className="h-5 w-5" />
-            </button>
+            <Tooltip content="Settings" position="top">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                    <Cog6ToothIcon className="h-5 w-5" />
+                </button>
+            </Tooltip>
 
             {isOpen && (
                 <div className="absolute bottom-full left-0 mb-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 z-50">

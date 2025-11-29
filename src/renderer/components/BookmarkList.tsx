@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Bookmark } from '../types'
 import ConfirmDialog from './ConfirmDialog'
+import { Tooltip } from './Tooltip'
 
 interface BookmarkListProps {
     bookmarks: Bookmark[]
@@ -137,13 +138,14 @@ export default function BookmarkList({
                                             Remote: {bookmark.remotePath}
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={(e) => handleDelete(e, bookmark.id!, bookmark.name)}
-                                        className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs p-1"
-                                        title="Delete bookmark"
-                                    >
-                                        ✕
-                                    </button>
+                                    <Tooltip content="Delete bookmark">
+                                        <button
+                                            onClick={(e) => handleDelete(e, bookmark.id!, bookmark.name)}
+                                            className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 text-xs p-1"
+                                        >
+                                            ✕
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
                         </div>

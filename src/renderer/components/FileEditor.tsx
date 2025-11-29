@@ -2,7 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import { FileSystemEntry } from '../types'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
-import Editor from '@monaco-editor/react'
+import Editor, { loader } from '@monaco-editor/react'
+import * as monaco from 'monaco-editor'
+
+// Configure Monaco loader to use local package instead of CDN
+loader.config({ monaco })
 import { useWindowManager } from '../contexts/WindowManagerContext'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -136,6 +140,7 @@ export default function FileEditor({
                         ) : (
                             <Editor
                                 height="100%"
+                                path={file?.path}
                                 language={language}
                                 value={content}
                                 onChange={(value) => setContent(value || '')}

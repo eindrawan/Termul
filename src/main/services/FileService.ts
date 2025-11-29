@@ -341,7 +341,12 @@ export class FileService {
     try {
       const sftp = await this.getSftpClient(connectionId)
       const result = await sftp.get(path)
-      return Buffer.isBuffer(result) ? result.toString('utf-8') : (result as string)
+
+      // Ensure we return a string. ssh2-sftp-client returns a Buffer, but sometimes Buffer.isBuffer fails.
+      if (typeof result === 'object' && result !== null && 'toString' in result) {
+        return (result as any).toString('utf-8')
+      }
+      return result as string
     } catch (error) {
       console.error(`Failed to read remote file ${path}:`, error)
       await this.clearSftpCache(connectionId)

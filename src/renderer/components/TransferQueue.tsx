@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useTransfer } from '../contexts/TransferContext'
 import { TransferItem } from '../types'
+import { Tooltip } from './Tooltip'
 
 export default function TransferQueue() {
     const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
@@ -172,31 +173,34 @@ export default function TransferQueue() {
                                     {/* Action buttons */}
                                     <div className="flex space-x-1">
                                         {transfer.status === 'active' && (
-                                            <button
-                                                onClick={() => handleAction(transfer, 'pause')}
-                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
-                                                title="Pause"
-                                            >
-                                                ⏸️
-                                            </button>
+                                            <Tooltip content="Pause">
+                                                <button
+                                                    onClick={() => handleAction(transfer, 'pause')}
+                                                    className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
+                                                >
+                                                    ⏸️
+                                                </button>
+                                            </Tooltip>
                                         )}
                                         {transfer.status === 'paused' && (
-                                            <button
-                                                onClick={() => handleAction(transfer, 'resume')}
-                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
-                                                title="Resume"
-                                            >
-                                                ▶️
-                                            </button>
+                                            <Tooltip content="Resume">
+                                                <button
+                                                    onClick={() => handleAction(transfer, 'resume')}
+                                                    className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
+                                                >
+                                                    ▶️
+                                                </button>
+                                            </Tooltip>
                                         )}
                                         {(transfer.status === 'active' || transfer.status === 'paused' || transfer.status === 'pending') && (
-                                            <button
-                                                onClick={() => handleAction(transfer, 'cancel')}
-                                                className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
-                                                title="Cancel"
-                                            >
-                                                🚫
-                                            </button>
+                                            <Tooltip content="Cancel">
+                                                <button
+                                                    onClick={() => handleAction(transfer, 'cancel')}
+                                                    className="btn btn-ghost text-xs dark:text-gray-300 dark:hover:bg-gray-700"
+                                                >
+                                                    🚫
+                                                </button>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 </div>

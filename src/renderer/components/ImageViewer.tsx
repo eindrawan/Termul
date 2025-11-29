@@ -7,6 +7,7 @@ import {
     ArrowPathIcon,
     ArrowsPointingOutIcon
 } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 
 interface ImageViewerProps {
     file: FileSystemEntry
@@ -144,38 +145,42 @@ export default function ImageViewer({
                     {/* Toolbar */}
                     <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
-                                className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                title="Zoom Out"
-                            >
-                                <MagnifyingGlassMinusIcon className="w-5 h-5" />
-                            </button>
+                            <Tooltip content="Zoom Out">
+                                <button
+                                    onClick={() => setZoom(z => Math.max(0.1, z - 0.1))}
+                                    className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                >
+                                    <MagnifyingGlassMinusIcon className="w-5 h-5" />
+                                </button>
+                            </Tooltip>
                             <span className="text-sm text-gray-600 dark:text-gray-300 min-w-[3rem] text-center">
                                 {Math.round(zoom * 100)}%
                             </span>
-                            <button
-                                onClick={() => setZoom(z => Math.min(5, z + 0.1))}
-                                className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                title="Zoom In"
-                            >
-                                <MagnifyingGlassPlusIcon className="w-5 h-5" />
-                            </button>
+                            <Tooltip content="Zoom In">
+                                <button
+                                    onClick={() => setZoom(z => Math.min(5, z + 0.1))}
+                                    className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                >
+                                    <MagnifyingGlassPlusIcon className="w-5 h-5" />
+                                </button>
+                            </Tooltip>
                             <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-2" />
-                            <button
-                                onClick={() => setRotation(r => (r + 90) % 360)}
-                                className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                title="Rotate"
-                            >
-                                <ArrowPathIcon className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => { setZoom(1); setRotation(0); }}
-                                className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                                title="Reset"
-                            >
-                                <ArrowsPointingOutIcon className="w-5 h-5" />
-                            </button>
+                            <Tooltip content="Rotate">
+                                <button
+                                    onClick={() => setRotation(r => (r + 90) % 360)}
+                                    className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                >
+                                    <ArrowPathIcon className="w-5 h-5" />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content="Reset">
+                                <button
+                                    onClick={() => { setZoom(1); setRotation(0); }}
+                                    className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                >
+                                    <ArrowsPointingOutIcon className="w-5 h-5" />
+                                </button>
+                            </Tooltip>
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                             {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}

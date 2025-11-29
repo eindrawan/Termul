@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { Tooltip } from './Tooltip'
 import { RectangleStackIcon } from '@heroicons/react/24/outline'
 import { useWindowManager } from '../contexts/WindowManagerContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -44,17 +45,18 @@ export default function WindowList() {
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center space-x-1 px-2 py-0.5 rounded transition-colors ${theme === 'dark'
-                    ? 'hover:bg-gray-700 text-gray-300'
-                    : 'hover:bg-gray-200 text-gray-700'
-                    }`}
-                title="Open Windows"
-            >
-                <RectangleStackIcon className="h-3.5 w-3.5" />
-                <span className="text-xs">{windows.length}</span>
-            </button>
+            <Tooltip content="Open Windows" position="left">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    className={`flex items-center space-x-1 px-2 py-0.5 rounded transition-colors ${theme === 'dark'
+                        ? 'hover:bg-gray-700 text-gray-300'
+                        : 'hover:bg-gray-200 text-gray-700'
+                        }`}
+                >
+                    <RectangleStackIcon className="h-3.5 w-3.5" />
+                    <span className="text-xs">{windows.length}</span>
+                </button>
+            </Tooltip>
 
             {isOpen && (
                 <div style={{ zIndex: 10000 }} className={`absolute bottom-full right-0 mb-1 w-64 rounded-lg shadow-xl overflow-hidden ${theme === 'dark'

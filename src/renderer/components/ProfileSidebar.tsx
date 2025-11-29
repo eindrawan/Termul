@@ -4,6 +4,7 @@ import { ConnectionProfile } from '../types'
 import ManageProfilesDialog from './ManageProfilesDialog'
 import SettingsMenu from './SettingsMenu'
 import { PlusIcon, ServerIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 
 export default function ProfileSidebar() {
     const [showProfileDialog, setShowProfileDialog] = useState(false)
@@ -83,14 +84,16 @@ export default function ProfileSidebar() {
             <div className="flex flex-col h-full w-64 bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white">
                 {/* Header with Create Button */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <button
-                        onClick={handleCreateProfile}
-                        className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
-                        disabled={state.isLoading}
-                    >
-                        <PlusIcon className="h-5 w-5" />
-                        <span>New Profile</span>
-                    </button>
+                    <Tooltip content="Create a new connection profile" position="bottom" className="w-full">
+                        <button
+                            onClick={handleCreateProfile}
+                            className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors"
+                            disabled={state.isLoading}
+                        >
+                            <PlusIcon className="h-5 w-5" />
+                            <span>New Profile</span>
+                        </button>
+                    </Tooltip>
                 </div>
 
                 {/* Profiles List */}
@@ -136,13 +139,14 @@ export default function ProfileSidebar() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center space-x-1">
-                                                    <button
-                                                        onClick={(e) => handleEditProfile(profile, e)}
-                                                        className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                                        title="Edit Profile"
-                                                    >
-                                                        <PencilIcon className={`h-4 w-4 ${isProfileConnected(profile) && isProfileActive(profile) ? 'text-white hover:text-gray-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'}`} />
-                                                    </button>
+                                                    <Tooltip content="Edit Profile" position="left">
+                                                        <button
+                                                            onClick={(e) => handleEditProfile(profile, e)}
+                                                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                                        >
+                                                            <PencilIcon className={`h-4 w-4 ${isProfileConnected(profile) && isProfileActive(profile) ? 'text-white hover:text-gray-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white'}`} />
+                                                        </button>
+                                                    </Tooltip>
                                                 </div>
                                             </div>
                                             {isProfileConnected(profile) && (

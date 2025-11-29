@@ -1,6 +1,7 @@
 import React from 'react'
 import { ClockIcon, ArrowUpTrayIcon, ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { TransferItem } from '../types'
+import { Tooltip } from './Tooltip'
 
 interface HistoryListProps {
     transfers: TransferItem[]
@@ -121,15 +122,16 @@ export default function HistoryList({
                     Transfer History
                 </div>
                 {onClearHistory && (
-                    <button
-                        onClick={() => {
-                            onClearHistory()
-                        }}
-                        className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-                        title="Clear history"
-                    >
-                        <TrashIcon className="h-3 w-3" />
-                    </button>
+                    <Tooltip content="Clear history">
+                        <button
+                            onClick={() => {
+                                onClearHistory()
+                            }}
+                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                        >
+                            <TrashIcon className="h-3 w-3" />
+                        </button>
+                    </Tooltip>
                 )}
             </div>
 
@@ -150,9 +152,11 @@ export default function HistoryList({
                                 ) : (
                                     <ArrowDownTrayIcon className="h-4 w-4 text-green-500 dark:text-green-400 mr-2 flex-shrink-0" />
                                 )}
-                                <span className="truncate flex-1" title={transfer.sourcePath}>
-                                    {getFileName(transfer.sourcePath)}
-                                </span>
+                                <Tooltip content={transfer.sourcePath}>
+                                    <span className="truncate flex-1">
+                                        {getFileName(transfer.sourcePath)}
+                                    </span>
+                                </Tooltip>
                             </div>
                             <span className={`text-xs font-medium ${getStatusColor(transfer.status)} ml-2 flex-shrink-0`}>
                                 {transfer.status}
@@ -160,16 +164,20 @@ export default function HistoryList({
                         </div>
                         <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 w-full">
                             <div className="flex justify-between">
-                                <span className="truncate flex-1" title={transfer.sourcePath}>
-                                    From: {truncatePath(transfer.sourcePath)}
-                                </span>
+                                <Tooltip content={transfer.sourcePath}>
+                                    <span className="truncate flex-1">
+                                        From: {truncatePath(transfer.sourcePath)}
+                                    </span>
+                                </Tooltip>
                                 <span className="ml-2 flex-shrink-0">
                                     {formatFileSize(transfer.size)}
                                 </span>
                             </div>
-                            <div className="truncate mt-1" title={transfer.destinationPath}>
-                                To: {truncatePath(transfer.destinationPath)}
-                            </div>
+                            <Tooltip content={transfer.destinationPath}>
+                                <div className="truncate mt-1">
+                                    To: {truncatePath(transfer.destinationPath)}
+                                </div>
+                            </Tooltip>
                             <div className="mt-1">
                                 {formatDate(transfer.completedAt)}
                             </div>

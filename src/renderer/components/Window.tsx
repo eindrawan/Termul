@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MinusIcon, Square2StackIcon, XMarkIcon, StopIcon } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 import { useWindowManager } from '../contexts/WindowManagerContext'
 
 interface WindowProps {
@@ -152,49 +153,52 @@ export default function Window({
                     )}
                 </div>
                 <div className="flex items-center space-x-0.5 ml-2">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            handleMinimize()
-                        }}
-                        className={`p-1 rounded transition-colors ${isFocused
-                            ? 'hover:bg-blue-500'
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
-                        title="Minimize"
-                    >
-                        <MinusIcon className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            handleMaximize()
-                        }}
-                        className={`p-1 rounded transition-colors ${isFocused
-                            ? 'hover:bg-blue-500'
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
-                        title={windowConfig.state === 'maximized' ? "Restore" : "Maximize"}
-                    >
-                        {windowConfig.state === 'maximized' ? (
-                            <Square2StackIcon className="h-3.5 w-3.5" />
-                        ) : (
-                            <StopIcon className="h-3.5 w-3.5" />
-                        )}
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            closeWindow(id)
-                        }}
-                        className={`p-1 rounded transition-colors ${isFocused
-                            ? 'hover:bg-red-600'
-                            : 'hover:bg-red-500 hover:text-white'
-                            }`}
-                        title="Close"
-                    >
-                        <XMarkIcon className="h-3.5 w-3.5" />
-                    </button>
+                    <Tooltip content="Minimize">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleMinimize()
+                            }}
+                            className={`p-1 rounded transition-colors ${isFocused
+                                ? 'hover:bg-blue-500'
+                                : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            <MinusIcon className="h-3.5 w-3.5" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip content={windowConfig.state === 'maximized' ? "Restore" : "Maximize"}>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                handleMaximize()
+                            }}
+                            className={`p-1 rounded transition-colors ${isFocused
+                                ? 'hover:bg-blue-500'
+                                : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                                }`}
+                        >
+                            {windowConfig.state === 'maximized' ? (
+                                <Square2StackIcon className="h-3.5 w-3.5" />
+                            ) : (
+                                <StopIcon className="h-3.5 w-3.5" />
+                            )}
+                        </button>
+                    </Tooltip>
+                    <Tooltip content="Close">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                closeWindow(id)
+                            }}
+                            className={`p-1 rounded transition-colors ${isFocused
+                                ? 'hover:bg-red-600'
+                                : 'hover:bg-red-500 hover:text-white'
+                                }`}
+                        >
+                            <XMarkIcon className="h-3.5 w-3.5" />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
 

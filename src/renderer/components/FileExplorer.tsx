@@ -14,6 +14,7 @@ import '../types/electron' // Import to ensure the electronAPI types are loaded
 import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
 import NameInputDialog from './NameInputDialog'
+import { Tooltip } from './Tooltip'
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
 type SortDirection = 'asc' | 'desc'
@@ -728,35 +729,38 @@ export default function FileExplorer({
                 <div className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 border-b dark:border-gray-700">
                     <h3 className="font-medium">{title}</h3>
                     <div className="flex gap-1">
-                        <button
-                            onClick={handleCreateFile}
-                            className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 dark:text-green-400 rounded transition-colors"
-                            title="New File"
-                        >
-                            <DocumentPlusIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={handleCreateFolder}
-                            className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 dark:text-blue-400 rounded transition-colors"
-                            title="New Folder"
-                        >
-                            <FolderPlusIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={async () => {
-                                setIsRefreshing(true)
-                                try {
-                                    await refetch()
-                                } finally {
-                                    setIsRefreshing(false)
-                                }
-                            }}
-                            className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 dark:text-gray-400 rounded transition-colors"
-                            title="Refresh"
-                            disabled={isLoading || isRefreshing}
-                        >
-                            <ArrowPathIcon className={`w-5 h-5 ${(isLoading || isRefreshing) ? 'animate-spin' : ''}`} />
-                        </button>
+                        <Tooltip content="New File">
+                            <button
+                                onClick={handleCreateFile}
+                                className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 dark:text-gray-400 rounded transition-colors"
+                            >
+                                <DocumentPlusIcon className="w-5 h-5" />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="New Folder">
+                            <button
+                                onClick={handleCreateFolder}
+                                className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 dark:text-gray-400 rounded transition-colors"
+                            >
+                                <FolderPlusIcon className="w-5 h-5" />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="Refresh">
+                            <button
+                                onClick={async () => {
+                                    setIsRefreshing(true)
+                                    try {
+                                        await refetch()
+                                    } finally {
+                                        setIsRefreshing(false)
+                                    }
+                                }}
+                                className="p-1 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 dark:text-gray-400 rounded transition-colors"
+                                disabled={isLoading || isRefreshing}
+                            >
+                                <ArrowPathIcon className={`w-5 h-5 ${(isLoading || isRefreshing) ? 'animate-spin' : ''}`} />
+                            </button>
+                        </Tooltip>
                     </div>
                 </div>
 
@@ -773,29 +777,30 @@ export default function FileExplorer({
                             autoFocus
                         />
                     ) : (
-                        <div
-                            className="flex items-center flex-1 cursor-text"
-                            onDoubleClick={handleBreadcrumbDoubleClick}
-                            title="Double-click to edit path"
-                        >
-                            {getBreadcrumbs().map((crumb, index) => (
-                                <React.Fragment key={index}>
-                                    <button
-                                        onClick={() => handleBreadcrumbClick(index)}
-                                        disabled={crumb.isLast}
-                                        className={`hover:text-primary-600 dark:hover:text-primary-400 ${crumb.isLast ? 'font-medium text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'
-                                            }`}
-                                    >
-                                        {crumb.name}
-                                    </button>
-                                    {!crumb.isLast && (
-                                        <span className="mx-1 text-gray-400 dark:text-gray-500">
-                                            {isLocal ? '\\' : '/'}
-                                        </span>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </div>
+                        <Tooltip content="Double-click to edit path">
+                            <div
+                                className="flex items-center flex-1 cursor-text"
+                                onDoubleClick={handleBreadcrumbDoubleClick}
+                            >
+                                {getBreadcrumbs().map((crumb, index) => (
+                                    <React.Fragment key={index}>
+                                        <button
+                                            onClick={() => handleBreadcrumbClick(index)}
+                                            disabled={crumb.isLast}
+                                            className={`hover:text-primary-600 dark:hover:text-primary-400 ${crumb.isLast ? 'font-medium text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'
+                                                }`}
+                                        >
+                                            {crumb.name}
+                                        </button>
+                                        {!crumb.isLast && (
+                                            <span className="mx-1 text-gray-400 dark:text-gray-500">
+                                                {isLocal ? '\\' : '/'}
+                                            </span>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        </Tooltip>
                     )}
                 </div>
 

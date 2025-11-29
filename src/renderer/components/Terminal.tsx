@@ -9,6 +9,7 @@ import TerminalContextMenu from './TerminalContextMenu'
 import { useXTerm } from '../hooks/useXTerm'
 import { TerminalBookmark } from '../types'
 import { BookmarkIcon, BookOpenIcon } from '@heroicons/react/24/outline'
+import { Tooltip } from './Tooltip'
 
 interface TerminalProps {
     connectionId: string
@@ -261,29 +262,32 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
                             </button>
                         ) : (
                             <>
-                                <button
-                                    onClick={handleBookmarkCommand}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
-                                    title="Bookmark Command"
-                                >
-                                    <BookmarkIcon className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={handleShowBookmarks}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
-                                    title="Show Bookmarks"
-                                >
-                                    <BookOpenIcon className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={handleClearTerminal}
-                                    className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
-                                    title="Clear Terminal"
-                                >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+                                <Tooltip content="Bookmark Command">
+                                    <button
+                                        onClick={handleBookmarkCommand}
+                                        className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
+                                    >
+                                        <BookmarkIcon className="h-4 w-4" />
+                                    </button>
+                                </Tooltip>
+                                <Tooltip content="Show Bookmarks">
+                                    <button
+                                        onClick={handleShowBookmarks}
+                                        className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
+                                    >
+                                        <BookOpenIcon className="h-4 w-4" />
+                                    </button>
+                                </Tooltip>
+                                <Tooltip content="Clear Terminal">
+                                    <button
+                                        onClick={handleClearTerminal}
+                                        className="p-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
+                                    >
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </Tooltip>
                             </>
                         )}
                     </div>
