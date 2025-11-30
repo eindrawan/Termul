@@ -45,6 +45,7 @@ export interface TransferItem extends TransferDescriptor {
 export interface ConnectionStatus {
   connected: boolean
   connecting: boolean
+  reconnecting?: boolean
   host?: string
   username?: string
   error?: string

@@ -26,7 +26,16 @@ export class FileService {
 
   public async getSftpClient(connectionId: string): Promise<SFTPClient> {
     // Check if connection is still active
-    const connectionStatus = this.connectionService.getStatus(connectionId)
+    // Check if connection is still active or reconnecting
+    let connectionStatus = this.connectionService.getStatus(connectionId)
+
+    // If connecting or reconnecting, wait a bit
+    if (connectionStatus && (connectionStatus.connecting || connectionStatus.reconnecting)) {
+      console.log(`Connection ${connectionId} is connecting/reconnecting. Waiting for FileService...`)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      connectionStatus = this.connectionService.getStatus(connectionId)
+    }
+
     if (!connectionStatus || !connectionStatus.connected) {
       throw new Error('Connection is not active')
     }

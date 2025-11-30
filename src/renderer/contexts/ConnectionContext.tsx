@@ -3,6 +3,7 @@ import { ConnectionProfile, ConnectionStatus, ActiveConnection } from '../types'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import '../types/electron' // Import to ensure the electronAPI types are loaded
 import PassphraseDialog from '../components/PassphraseDialog'
+import AlertDialog from '../components/AlertDialog'
 
 interface ConnectionState {
     profiles: ConnectionProfile[]
@@ -126,6 +127,19 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         keyPath: string
     }>({ isOpen: false, keyPath: '' })
 
+    // Alert dialog state
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean
+        title: string
+        message: string
+        variant: 'success' | 'error' | 'warning' | 'info'
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        variant: 'info'
+    })
+
     // Query for profiles
     const { data: profiles = [], refetch: refetchProfiles } = useQuery({
         queryKey: ['profiles'],
@@ -168,6 +182,30 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
         },
         onError: (error: any) => {
             console.error('Connection error:', error)
+            let message = 'An unknown error occurred'
+            if (error instanceof Error) {
+                message = error.message
+            } else if (typeof error === 'string') {
+                message = error
+            } else if (error && typeof error === 'object' && 'message' in error) {
+                message = String(error.message)
+            }
+
+            // Extract more info if available
+            if (message.includes('ETIMEDOUT')) {
+                message = `Connection timed out. Please check if the host is reachable and the port is correct.\n\nDetails: ${message}`
+            } else if (message.includes('ECONNREFUSED')) {
+                message = `Connection refused. Please check if the SSH service is running on the host.\n\nDetails: ${message}`
+            } else if (message.includes('All configured authentication methods failed')) {
+                message = `Authentication failed. Please check your username, password, or SSH key.\n\nDetails: ${message}`
+            }
+
+            setAlertDialog({
+                isOpen: true,
+                title: 'Connection Failed',
+                message: message,
+                variant: 'error'
+            })
         },
         onSettled: () => {
             dispatch({ type: 'SET_LOADING', payload: false })
@@ -254,6 +292,13 @@ export function ConnectionProvider({ children }: { children: React.ReactNode }) 
                 keyPath={passphraseDialog.keyPath}
                 onSubmit={handlePassphraseSubmit}
                 onCancel={handlePassphraseCancel}
+            />
+            <AlertDialog
+                isOpen={alertDialog.isOpen}
+                title={alertDialog.title}
+                message={alertDialog.message}
+                variant={alertDialog.variant}
+                onConfirm={() => setAlertDialog(prev => ({ ...prev, isOpen: false }))}
             />
         </ConnectionContext.Provider>
     )

@@ -146,45 +146,63 @@ export class DockerService {
         }
 
         try {
-            // Request a shell
-            const shellStream = await client.requestShell({
-                term: 'xterm-256color',
-                cols,
-                rows,
-            })
-
-            const shellId = `${connectionId}-${containerId}-${Date.now()}`
-
-            // Store shell instance
-            this.activeShells.set(shellId, {
-                connectionId,
-                containerId,
-                stream: shellStream,
-                connected: true
-            })
-
-            // Setup stream handling
-            this.setupShellStream(shellId, shellStream)
-
-            // Send docker exec command
             const cachedPassword = this.sudoPasswords.get(connectionId)
+
+            // Construct the command
+            // Try bash first as it has better interactive support (arrow keys, history), then fall back to sh
+            // Also explicitly set TERM to ensure correct terminal capabilities inside the container
+            let command = `docker exec -it -e TERM=xterm-256color ${containerId} /bin/bash || docker exec -it -e TERM=xterm-256color ${containerId} /bin/sh`
 
             if (cachedPassword) {
                 // If we have a cached password, use sudo -S
                 // We use -p '' to suppress the prompt since we're sending the password immediately
-                const cmd = `sudo -S -p '' docker exec -it ${containerId} /bin/sh || sudo -S -p '' docker exec -it ${containerId} /bin/bash`
-                shellStream.write(`${cmd}\n`)
-
-                // Send password after a brief delay to ensure sudo is ready to read it
-                setTimeout(() => {
-                    shellStream.write(`${cachedPassword}\n`)
-                }, 100)
-            } else {
-                const cmd = `docker exec -it ${containerId} /bin/sh || docker exec -it ${containerId} /bin/bash`
-                shellStream.write(`${cmd}\n`)
+                command = `sudo -S -p '' docker exec -it -e TERM=xterm-256color ${containerId} /bin/bash || sudo -S -p '' docker exec -it -e TERM=xterm-256color ${containerId} /bin/sh`
             }
 
-            return shellId
+            return new Promise<string>((resolve, reject) => {
+                // Use the underlying ssh2 connection to execute the command with a PTY
+                // This avoids the issue where the intermediate shell interferes with input (arrow keys, tab, etc.)
+                const sshClient = client as any
+                if (!sshClient.connection) {
+                    reject(new Error('SSH connection not established'))
+                    return
+                }
+
+                sshClient.connection.exec(command, {
+                    pty: {
+                        term: 'xterm-256color',
+                        rows,
+                        cols,
+                    }
+                }, (err: any, stream: any) => {
+                    if (err) {
+                        reject(err)
+                        return
+                    }
+
+                    const shellId = `${connectionId}-${containerId}-${Date.now()}`
+
+                    // Store shell instance
+                    this.activeShells.set(shellId, {
+                        connectionId,
+                        containerId,
+                        stream: stream,
+                        connected: true
+                    })
+
+                    // Setup stream handling
+                    this.setupShellStream(shellId, stream)
+
+                    if (cachedPassword) {
+                        // Send password after a brief delay to ensure sudo is ready to read it
+                        setTimeout(() => {
+                            stream.write(`${cachedPassword}\n`)
+                        }, 100)
+                    }
+
+                    resolve(shellId)
+                })
+            })
         } catch (error) {
             throw new Error(`Failed to start container shell: ${error instanceof Error ? error.message : error}`)
         }

@@ -19,6 +19,9 @@ export class ConnectionService {
   private db: DatabaseService
   private credentials: CredentialService
   private fileService: FileService | null = null
+  private reconnectAttempts: Map<string, number> = new Map()
+  private readonly MAX_RECONNECT_ATTEMPTS = 5
+  private readonly RECONNECT_DELAY = 2000
 
   constructor() {
     this.db = new DatabaseService()
@@ -117,9 +120,13 @@ export class ConnectionService {
       const connectedStatus: ConnectionStatus = {
         connected: true,
         connecting: false,
+        reconnecting: false,
         host: profile.host,
         username: profile.username
       }
+
+      // Reset reconnect attempts on successful connection
+      this.reconnectAttempts.set(connectionId, 0)
 
       this.connections.set(connectionId, {
         id: connectionId,
@@ -137,45 +144,12 @@ export class ConnectionService {
         ssh.connection.on('error', (err: any) => {
           console.error(`SSH Connection Error (${connectionId}):`, err)
 
-          const errorStatus: ConnectionStatus = {
-            connected: false,
-            connecting: false,
-            host: profile.host,
-            username: profile.username,
-            error: err.message || 'Connection error'
-          }
-
-          // Update status and notify renderer
-          const connection = this.connections.get(connectionId)
-          if (connection) {
-            connection.status = errorStatus
-            this.emitStatusChange(connectionId, errorStatus)
-
-            // We don't remove the connection immediately so the user can try to reconnect
-            // But we should probably dispose the SSH client to clean up
-            try {
-              connection.ssh.dispose()
-            } catch (disposeError) {
-              console.error('Error disposing SSH client after connection error:', disposeError)
-            }
-          }
+          this.handleConnectionLoss(connectionId, profile, err.message || 'Connection error')
         })
 
         ssh.connection.on('end', () => {
           console.log(`SSH Connection Ended (${connectionId})`)
-          const status: ConnectionStatus = {
-            connected: false,
-            connecting: false,
-            host: profile.host,
-            username: profile.username,
-            error: 'Connection closed by remote host'
-          }
-
-          const connection = this.connections.get(connectionId)
-          if (connection) {
-            connection.status = status
-            this.emitStatusChange(connectionId, status)
-          }
+          this.handleConnectionLoss(connectionId, profile, 'Connection closed by remote host')
         })
       }
 
@@ -213,6 +187,7 @@ export class ConnectionService {
 
         await connection.ssh.dispose()
         this.connections.delete(connectionId)
+        this.reconnectAttempts.delete(connectionId)
 
         const status: ConnectionStatus = { connected: false, connecting: false }
         this.emitStatusChange(connectionId, status)
@@ -352,6 +327,80 @@ export class ConnectionService {
 
   async getConnectionPlugin(profileId: string): Promise<string | null> {
     return await this.db.getConnectionPlugin(profileId)
+  }
+
+  private async handleConnectionLoss(connectionId: string, profile: ConnectionProfile, errorMessage: string): Promise<void> {
+    const currentAttempts = this.reconnectAttempts.get(connectionId) || 0
+
+    if (currentAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      const nextAttempt = currentAttempts + 1
+      this.reconnectAttempts.set(connectionId, nextAttempt)
+
+      console.log(`Connection lost. Attempting reconnect ${nextAttempt}/${this.MAX_RECONNECT_ATTEMPTS} in ${this.RECONNECT_DELAY}ms...`)
+
+      const reconnectingStatus: ConnectionStatus = {
+        connected: false,
+        connecting: true,
+        reconnecting: true,
+        host: profile.host,
+        username: profile.username,
+        error: `Reconnecting (Attempt ${nextAttempt}/${this.MAX_RECONNECT_ATTEMPTS})...`
+      }
+
+      // Update status to reconnecting
+      const connection = this.connections.get(connectionId)
+      if (connection) {
+        connection.status = reconnectingStatus
+        this.emitStatusChange(connectionId, reconnectingStatus)
+
+        // Clean up old connection
+        try {
+          connection.ssh.dispose()
+        } catch (e) {
+          // Ignore disposal errors
+        }
+      }
+
+      // Wait and retry
+      setTimeout(async () => {
+        try {
+          // Check if connection was manually disconnected or removed during delay
+          if (!this.connections.has(connectionId)) return
+
+          await this.reconnect(connectionId)
+        } catch (error) {
+          console.error('Reconnect attempt failed:', error)
+          // The reconnect call itself might trigger another error/end event if it fails, 
+          // or throw. If it throws, we might need to manually trigger the next retry or fail.
+          // However, connect() throws on immediate failure.
+
+          // If connect() throws, we should treat it as a failed attempt and try again if possible,
+          // or let the recursion handle it if it emits 'error' on the new ssh instance.
+          // But connect() creates a NEW ssh instance.
+
+          // If connect() fails, it throws. We need to handle that here to trigger next retry.
+          this.handleConnectionLoss(connectionId, profile, error instanceof Error ? error.message : String(error))
+        }
+      }, this.RECONNECT_DELAY)
+
+    } else {
+      console.log(`Max reconnect attempts reached for ${connectionId}`)
+      const errorStatus: ConnectionStatus = {
+        connected: false,
+        connecting: false,
+        reconnecting: false,
+        host: profile.host,
+        username: profile.username,
+        error: errorMessage || 'Connection lost. Max reconnect attempts reached.'
+      }
+
+      const connection = this.connections.get(connectionId)
+      if (connection) {
+        connection.status = errorStatus
+        this.emitStatusChange(connectionId, errorStatus)
+        this.reconnectAttempts.delete(connectionId)
+      }
+    }
   }
 
   private async promptForPassphrase(keyPath: string): Promise<string | null> {

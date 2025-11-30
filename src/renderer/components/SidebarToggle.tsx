@@ -11,7 +11,7 @@ export default function SidebarToggle({ isSidebarOpen, onToggle }: SidebarToggle
     return (
         <Tooltip content={isSidebarOpen ? "Hide sidebar" : "Show sidebar"} position="right">
             <div
-                className="w-1 bg-gray-300 dark:bg-gray-600 hover:bg-primary-500 dark:hover:bg-primary-400 cursor-pointer transition-all duration-200 group relative"
+                className="w-1 h-full bg-gray-300 dark:bg-gray-600 hover:bg-primary-500 dark:hover:bg-primary-400 cursor-pointer transition-all duration-200 group relative"
                 onClick={onToggle}
             >
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">

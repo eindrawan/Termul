@@ -189,14 +189,16 @@ export default function MainLayout() {
                         {currentConnection && currentConnection.status ? (
                             <>
                                 <span className={`status-indicator ${currentConnection.status.connected ? 'status-connected' :
-                                    currentConnection.status.connecting ? 'status-connecting' :
-                                        currentConnection.status.error ? 'status-error' :
-                                            'status-disconnected'
+                                    currentConnection.status.reconnecting ? 'status-connecting' :
+                                        currentConnection.status.connecting ? 'status-connecting' :
+                                            currentConnection.status.error ? 'status-error' :
+                                                'status-disconnected'
                                     }`}>
                                     {currentConnection.status.connected ? `${currentConnection.profile.name}` :
-                                        currentConnection.status.connecting ? 'Connecting...' :
-                                            currentConnection.status.error ? 'Error' :
-                                                'Disconnected'}
+                                        currentConnection.status.reconnecting ? (currentConnection.status.error || 'Reconnecting...') :
+                                            currentConnection.status.connecting ? 'Connecting...' :
+                                                currentConnection.status.error ? 'Error' :
+                                                    'Disconnected'}
                                 </span>
                                 {currentConnection.status.latency && (
                                     <span>Latency: {currentConnection.status.latency}ms</span>

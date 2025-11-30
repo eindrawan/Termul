@@ -97,16 +97,28 @@ export default function DockerShellViewer({ connectionId, containerId }: DockerS
 
         startShell()
 
-        // Handle window resize
-        const handleResize = () => {
-            if (fitAddonRef.current) {
-                fitAddonRef.current.fit()
+        // Handle resize with ResizeObserver
+        const resizeObserver = new ResizeObserver(() => {
+            // We need to wrap this in a requestAnimationFrame or similar to avoid
+            // "ResizeObserver loop limit exceeded" error in some cases,
+            // but for xterm fit addon, it's usually safe to call directly
+            // provided we don't cause a layout thrashing loop.
+            // Adding a small delay or check can help stability.
+            if (fitAddonRef.current && xtermRef.current) {
+                try {
+                    fitAddonRef.current.fit()
+                } catch (err) {
+                    console.warn('Fit addon failed to fit:', err)
+                }
             }
+        })
+
+        if (terminalRef.current) {
+            resizeObserver.observe(terminalRef.current)
         }
-        window.addEventListener('resize', handleResize)
 
         return () => {
-            window.removeEventListener('resize', handleResize)
+            resizeObserver.disconnect()
             if (shellIdRef.current) {
                 window.electronAPI.closeDockerShell(shellIdRef.current)
             }
