@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { FileSystemEntry } from '../types'
 import { useQuery } from '@tanstack/react-query'
 import { useDeletion } from '../contexts/DeletionContext'
-import { useTheme } from '../contexts/ThemeContext'
 import { openFileEditor } from './FileEditorManager'
 import ContextMenu from './ContextMenu'
 import {
@@ -15,6 +14,8 @@ import ConfirmDialog from './ConfirmDialog'
 import AlertDialog from './AlertDialog'
 import NameInputDialog from './NameInputDialog'
 import { Tooltip } from './Tooltip'
+import { useReconnect } from '../hooks/useReconnect'
+
 
 type SortField = 'name' | 'size' | 'modified' | 'permissions'
 type SortDirection = 'asc' | 'desc'
@@ -53,7 +54,6 @@ export default function FileExplorer({
     const [sortField, setSortField] = useState<SortField>('name')
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
     const [isRefreshing, setIsRefreshing] = useState(false)
-    const { theme } = useTheme()
     const { startDeletion, updateDeletionProgress, finishDeletion } = useDeletion()
     const [columnWidths, setColumnWidths] = useState({
         name: 40, // percentage
@@ -107,6 +107,11 @@ export default function FileExplorer({
         validate?: (name: string) => string | null
     }>({ isOpen: false, title: '', initialValue: '', placeholder: '', onConfirm: () => { } })
 
+    // Reconnection hook
+    const { showReconnectDialog, setShowReconnectDialog, handleReconnect } = useReconnect(connectionId || '', () => {
+        refetch()
+    })
+
     // Query for file listings
     const { data: fetchedFiles = [], isLoading, error, refetch } = useQuery({
         queryKey: [isLocal ? 'local-files' : 'remote-files', connectionId, path, !disabled],
@@ -132,16 +137,22 @@ export default function FileExplorer({
         }
     }, [fetchedFiles])
 
+    // Handle connection errors
+    useEffect(() => {
+        if (error && !isLocal) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.includes('ECONNRESET') || message.includes('Connection error') || message.includes('ETIMEDOUT')) {
+                setShowReconnectDialog(true)
+            }
+        }
+    }, [error, isLocal, setShowReconnectDialog])
+
     // Listen for transfer completion events to refresh file list
     useEffect(() => {
         const handleTransferComplete = (event: CustomEvent) => {
-            const { sourcePath, destinationPath, direction } = event.detail
+            const { destinationPath, direction } = event.detail
 
             // Extract directory paths from the file paths
-            const getSourceDir = (filePath: string) => {
-                const parts = filePath.split(/[/\\]/)
-                return parts.slice(0, -1).join(isLocal ? '\\' : '/')
-            }
 
             const getDestinationDir = (filePath: string) => {
                 const parts = filePath.split(/[/\\]/)
@@ -715,6 +726,17 @@ export default function FileExplorer({
                 onConfirm={confirmDialog.onConfirm}
                 onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
                 variant="danger"
+            />
+
+            <ConfirmDialog
+                isOpen={showReconnectDialog}
+                title="Connection Lost"
+                message="The connection to the server was lost. Do you want to reconnect?"
+                confirmText="Reconnect"
+                cancelText="Cancel"
+                onConfirm={handleReconnect}
+                onCancel={() => setShowReconnectDialog(false)}
+                variant="warning"
             />
 
             <AlertDialog

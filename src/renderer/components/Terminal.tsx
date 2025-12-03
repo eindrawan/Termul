@@ -6,6 +6,8 @@ import AlertDialog from './AlertDialog'
 import TerminalBookmarkDialog from './TerminalBookmarkDialog'
 import TerminalBookmarkList from './TerminalBookmarkList'
 import TerminalContextMenu from './TerminalContextMenu'
+import ConfirmDialog from './ConfirmDialog'
+import { useReconnect } from '../hooks/useReconnect'
 import { useXTerm } from '../hooks/useXTerm'
 import { TerminalBookmark } from '../types'
 import { BookmarkIcon, BookOpenIcon } from '@heroicons/react/24/outline'
@@ -51,6 +53,10 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
 
     const [terminalBookmarks, setTerminalBookmarks] = useState<TerminalBookmark[]>([])
 
+    const { showReconnectDialog, setShowReconnectDialog, handleReconnect } = useReconnect(connectionId, () => {
+        openMutation.mutate(connectionId)
+    })
+
     const handleInput = (data: string) => {
         console.log('[Terminal] User input:', data)
         sendInputMutation.mutate({ connectionId, data })
@@ -83,6 +89,13 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
     // Handle terminal errors
     useEffect(() => {
         if (terminalState.error) {
+            // Check if it's a connection error
+            if (terminalState.error.includes('ECONNRESET') || terminalState.error.includes('Connection error') || terminalState.error.includes('ETIMEDOUT')) {
+                setShowReconnectDialog(true)
+                clearError(connectionId)
+                return
+            }
+
             setAlertDialog({
                 isOpen: true,
                 message: terminalState.error,
@@ -95,7 +108,7 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
 
             clearError(connectionId)
         }
-    }, [terminalState.error, terminalState.isConnected, connectionId, closeMutation, clearError])
+    }, [terminalState.error, terminalState.isConnected, connectionId, closeMutation, clearError, setShowReconnectDialog])
 
     // Auto-open terminal when connected and active
     useEffect(() => {
@@ -238,6 +251,17 @@ export default function Terminal({ connectionId, isActive }: TerminalProps) {
                 message={alertDialog.message}
                 variant={alertDialog.variant}
                 onConfirm={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+            />
+
+            <ConfirmDialog
+                isOpen={showReconnectDialog}
+                title="Connection Lost"
+                message="The connection to the server was lost. Do you want to reconnect?"
+                confirmText="Reconnect"
+                cancelText="Cancel"
+                onConfirm={handleReconnect}
+                onCancel={() => setShowReconnectDialog(false)}
+                variant="warning"
             />
 
             <div className="flex flex-col h-full bg-white dark:bg-gray-900">

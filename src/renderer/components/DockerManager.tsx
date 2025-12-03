@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useConnection } from '../contexts/ConnectionContext'
 
 import { useWindowManager } from '../contexts/WindowManagerContext'
+import { useReconnect } from '../hooks/useReconnect'
+
 import { ArrowPathIcon, CommandLineIcon, DocumentTextIcon, CubeIcon } from '@heroicons/react/24/outline'
 import DockerLogsViewer from './DockerLogsViewer'
 import DockerShellViewer from './DockerShellViewer'
@@ -39,9 +41,9 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
     const [pendingContainer, setPendingContainer] = useState<DockerContainer | null>(null)
     const [restartingContainers, setRestartingContainers] = useState<Set<string>>(new Set())
     const [pinnedContainers, setPinnedContainers] = useState<Set<string>>(new Set())
-    const [showReconnectDialog, setShowReconnectDialog] = useState(false)
 
-    const { state: connectionState, connectMutation } = useConnection()
+
+    const { state: connectionState } = useConnection()
     const { registerWindow, focusWindow, getWindow } = useWindowManager()
 
     const connection = connectionState.activeConnections.get(connectionId)
@@ -158,23 +160,9 @@ export default function DockerManager({ connectionId, isActive }: DockerManagerP
         }
     }
 
-    const handleReconnect = async () => {
-        if (!connection?.profile) return
-
-        try {
-            setLoading(true)
-            setError(null)
-            setShowReconnectDialog(false)
-            await connectMutation.mutateAsync(connection.profile)
-            await fetchContainers()
-        } catch (err) {
-            console.error('Failed to reconnect:', err)
-            setError('Failed to reconnect: ' + (err instanceof Error ? err.message : String(err)))
-            setLoading(false)
-            // If reconnection fails, show the dialog again so they can retry
-            setShowReconnectDialog(true)
-        }
-    }
+    const { showReconnectDialog, setShowReconnectDialog, handleReconnect } = useReconnect(connectionId, () => {
+        fetchContainers()
+    })
 
     useEffect(() => {
         if (isActive && isConnected) {
